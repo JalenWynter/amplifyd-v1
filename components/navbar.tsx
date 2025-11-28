@@ -4,11 +4,13 @@ import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Logo } from "@/components/logo"
 import { MobileMenu } from "@/components/mobile-menu"
-import { Button } from "@/components/ui/button"
+import { NavbarAuth } from "@/components/navbar-auth"
 import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -16,6 +18,22 @@ export function Navbar() {
     }
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsAuthenticated(!!session)
+    }
+    checkAuth()
+
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      checkAuth()
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   return (
@@ -31,28 +49,20 @@ export function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-10">
-            <Link href="#features" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
+            <Link href="/artists" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
               Artist
             </Link>
-            <Link href="#pricing" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
+            <Link href="/pricing" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
               Pricing
             </Link>
-            <Link href="#about" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
+            <Link href="/about" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
               About
             </Link>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-3">
-              <Button variant="ghost" className="text-sm font-semibold hover:text-primary transition-colors" asChild>
-                <Link href="/signin">Sign In</Link>
-              </Button>
-              <Button
-                className="bg-primary text-white hover:bg-primary/90 font-semibold text-sm shadow-lg shadow-primary/20 transition-all hover:shadow-primary/40"
-                asChild
-              >
-                <Link href="/signup">Sign Up</Link>
-              </Button>
+              <NavbarAuth isAuthenticated={isAuthenticated} />
             </div>
             <ThemeToggle />
             <MobileMenu />
