@@ -10,11 +10,10 @@ export function MobileMenu() {
   const [open, setOpen] = useState(false)
 
   const menuItems = [
-    { href: "#over-ons", label: "Over Ons" },
-    { href: "#diensten", label: "Diensten" },
-    { href: "#portfolio", label: "Portfolio" },
-    { href: "#pakketten", label: "Pakketten" },
-    { href: "#contact", label: "Contact" },
+    { href: "/marketplace", label: "Marketplace" },
+    { href: "/reviews", label: "Reviews" },
+    { href: "/about", label: "About" },
+    { href: "/contact", label: "Contact" },
   ]
 
   return (
@@ -27,8 +26,8 @@ export function MobileMenu() {
       </SheetTrigger>
       <SheetContent side="right" className="w-[280px] sm:w-[350px]">
         <SheetHeader>
-          <SheetTitle>Navigatie Menu</SheetTitle>
-          <SheetDescription>Navigeer naar verschillende secties van de website</SheetDescription>
+          <SheetTitle>Navigation</SheetTitle>
+          <SheetDescription>Select a destination</SheetDescription>
         </SheetHeader>
         <nav className="flex flex-col gap-1 mt-8">
           {menuItems.map((item) => (

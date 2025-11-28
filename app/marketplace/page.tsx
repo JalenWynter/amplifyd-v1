@@ -472,8 +472,8 @@ export default function MarketplacePage() {
             <Link href="/marketplace" className="rounded-full bg-white/10 px-4 py-2 text-white">
               Marketplace
             </Link>
-            <Link href="/pricing" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
-              Pricing
+            <Link href="/reviews" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
+              Reviews
             </Link>
             <Link href="/about" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
               About
@@ -487,14 +487,6 @@ export default function MarketplacePage() {
           </div>
         </header>
 
-        <div className="space-y-4 text-center">
-          <Badge className="border border-white/20 bg-white/10 text-white">Amplifyd Marketplace</Badge>
-          <h1 className="text-4xl font-bold text-white md:text-5xl">Find Your Professional</h1>
-          <p className="text-lg text-white/70">
-            Browse vetted reviewers who specialize in elevating your sound with precise critique and actionable direction.
-          </p>
-        </div>
-
         <section className="grid gap-8 lg:grid-cols-[320px_1fr]">
           <FilterPanel
             tags={TAG_OPTIONS}
@@ -507,6 +499,14 @@ export default function MarketplacePage() {
           />
 
           <div className="space-y-6">
+            <div className="space-y-4 text-center mb-8">
+              <Badge className="border border-white/20 bg-white/10 text-white">Amplifyd Marketplace</Badge>
+              <h1 className="text-4xl font-bold text-white md:text-5xl">Find Your Professional</h1>
+              <p className="text-lg text-white/70">
+                Browse vetted reviewers who specialize in elevating your sound with precise critique and actionable direction.
+              </p>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               <p className="text-sm text-white/70">
                 Showing <span className="font-semibold text-white">{visibleReviewers.length}</span> of{" "}
@@ -789,7 +789,7 @@ function ReviewerDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] w-[95vw] max-w-5xl flex-col gap-0 overflow-hidden border border-white/10 bg-[#080808] p-0 text-white sm:h-[85vh]">
+      <DialogContent className="flex h-[85vh] w-[90vw] max-w-[1400px] flex-col gap-0 overflow-hidden border border-white/10 bg-[#080808]/90 backdrop-blur-md p-0 text-white sm:max-w-[1400px]">
         {reviewer ? (
           <div className="flex h-full flex-col">
             {/* Header Section */}
@@ -837,7 +837,7 @@ function ReviewerDialog({
 
             {/* Content Body */}
             <div className="flex-1 overflow-y-auto p-6 md:p-8">
-              <div className="grid gap-12 lg:grid-cols-[1fr_400px]">
+              <div className="grid gap-12 xl:grid-cols-[1fr_400px]">
                 <div className="space-y-8">
                   <section>
                     <h3 className="mb-4 text-xl font-bold text-white">About the Reviewer</h3>
@@ -854,7 +854,7 @@ function ReviewerDialog({
                   </section>
                 </div>
 
-                <div className="space-y-8 lg:border-l lg:border-white/10 lg:pl-8">
+                <div className="space-y-8 xl:border-l xl:border-white/10 xl:pl-8">
                   <section>
                     <h3 className="mb-4 text-lg font-semibold text-white">Why Book {reviewer.name.split(" ")[0]}?</h3>
                     <ul className="space-y-3">

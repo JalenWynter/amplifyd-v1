@@ -51,8 +51,8 @@ export function Navbar() {
             <Link href="/marketplace" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
               Marketplace
             </Link>
-            <Link href="/pricing" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
-              Pricing
+            <Link href="/reviews" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
+              Reviews
             </Link>
             <Link href="/about" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
               About
