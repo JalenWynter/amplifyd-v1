@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Logo } from "@/components/logo"
 import { MobileMenu } from "@/components/mobile-menu"
 import { NavbarAuth } from "@/components/navbar-auth"
@@ -49,8 +48,8 @@ export function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-10">
-            <Link href="/artists" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
-              Artist
+            <Link href="/marketplace" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
+              Marketplace
             </Link>
             <Link href="/pricing" className="text-sm font-semibold tracking-wide hover:text-primary transition-colors">
               Pricing
@@ -64,7 +63,6 @@ export function Navbar() {
             <div className="hidden md:flex items-center gap-3">
               <NavbarAuth isAuthenticated={isAuthenticated} />
             </div>
-            <ThemeToggle />
             <MobileMenu />
           </div>
         </div>

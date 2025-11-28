@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { Github, Linkedin, Twitter } from "lucide-react"
+import { HelpCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export function Footer() {
   return (
@@ -19,10 +20,10 @@ export function Footer() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  href="#features"
+                  href="/marketplace"
                   className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium"
                 >
-                  Features
+                  Marketplace
                 </Link>
               </li>
               <li>
@@ -45,36 +46,13 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-bold mb-6 tracking-wide uppercase text-sm">Connect</h4>
-            <div className="flex gap-4">
-              <Link
-                href="https://linkedin.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-all p-2 rounded-lg hover:bg-primary/10"
-              >
-                <Linkedin className="h-5 w-5" strokeWidth={2} />
-                <span className="sr-only">LinkedIn</span>
-              </Link>
-              <Link
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-all p-2 rounded-lg hover:bg-primary/10"
-              >
-                <Github className="h-5 w-5" strokeWidth={2} />
-                <span className="sr-only">GitHub</span>
-              </Link>
-              <Link
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-all p-2 rounded-lg hover:bg-primary/10"
-              >
-                <Twitter className="h-5 w-5" strokeWidth={2} />
-                <span className="sr-only">Twitter</span>
-              </Link>
-            </div>
+            <h4 className="font-bold mb-6 tracking-wide uppercase text-sm">Support</h4>
+            <Link href="/support">
+              <Button className="w-full sm:w-auto" variant="outline">
+                <HelpCircle className="h-4 w-4 mr-2" />
+                Support Ticket
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

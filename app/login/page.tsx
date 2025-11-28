@@ -56,7 +56,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#80808012] flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[#80808012] flex flex-col items-center justify-center px-4 py-12 relative">
+      <div className="absolute top-8 left-8">
+        <Link href="/" className="text-xl font-bold text-foreground hover:opacity-80 transition-opacity">
+          Amplifyd Studio
+        </Link>
+      </div>
       <Card className="w-full max-w-md glass-card border-border/50 backdrop-blur-xl bg-background/80 shadow-2xl">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-3xl font-bold">Sign In</CardTitle>
@@ -117,7 +122,7 @@ export default function LoginPage() {
             Sign In with Google
           </Button>
         </CardContent>
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex flex-col gap-4 justify-center">
           <p className="text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Link
@@ -127,6 +132,12 @@ export default function LoginPage() {
               Sign Up
             </Link>
           </p>
+          <Link 
+            href="/" 
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+          >
+            ← Back to Home
+          </Link>
         </CardFooter>
       </Card>
     </div>

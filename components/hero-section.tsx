@@ -161,7 +161,10 @@ export function HeroSection() {
 
                   <div className="space-y-3">
                     <h2 className="text-4xl font-bold text-foreground tracking-tight">Drop Your Tracks</h2>
-                    <p className="text-muted-foreground text-lg font-medium">MP3 • WAV • Instant Processing</p>
+                    <p className="text-muted-foreground text-lg font-medium">
+                      <span className="block">MP3 • WAV</span>
+                      <span className="block">Instant Processing</span>
+                    </p>
                   </div>
 
                   <Button
