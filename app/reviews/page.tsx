@@ -148,7 +148,7 @@ export default function ReviewsPage() {
             <Link href="/about" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
               About
             </Link>
-            <Link href="/contact" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
+            <Link href="/support" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
               Contact
             </Link>
           </nav>

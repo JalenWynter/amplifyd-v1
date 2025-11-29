@@ -41,6 +41,29 @@ export interface Database {
           status?: 'Open' | 'Resolved'
         }
       }
+      profiles: {
+        Row: {
+          id: string
+          email: string | null
+          role: 'user' | 'admin'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email?: string | null
+          role?: 'user' | 'admin'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string | null
+          role?: 'user' | 'admin'
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }

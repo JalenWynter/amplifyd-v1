@@ -28,6 +28,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Search,
+  X,
 } from "lucide-react"
 import { NavbarAuth } from "@/components/navbar-auth"
 import { createClient } from "@/utils/supabase/client"
@@ -478,7 +480,7 @@ export default function MarketplacePage() {
             <Link href="/about" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
               About
             </Link>
-            <Link href="/contact" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
+            <Link href="/support" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
               Contact
             </Link>
           </nav>
@@ -571,8 +573,34 @@ function FilterPanel({
 }) {
   const [minInput, setMinInput] = useState<string>(String(priceRange.min))
   const [maxInput, setMaxInput] = useState<string>(String(priceRange.max))
+  const [tagSearch, setTagSearch] = useState<string>("")
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const isMinEmpty = minInput === ""
   const isMaxEmpty = maxInput === ""
+
+  const filteredTags = useMemo(() => {
+    if (!tagSearch.trim()) return tags
+    const searchLower = tagSearch.toLowerCase()
+    return tags.filter((tag) => tag.toLowerCase().includes(searchLower))
+  }, [tags, tagSearch])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const handleMinChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value
@@ -603,23 +631,91 @@ function FilterPanel({
 
       <div className="space-y-3">
         <p className="text-sm font-semibold text-white/80">Tags</p>
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => {
-            const isActive = selectedTags.includes(tag)
-            return (
-              <Toggle
+        <div className="relative">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search for tags..."
+              value={tagSearch}
+              onChange={(e) => {
+                setTagSearch(e.target.value)
+                setIsDropdownOpen(true)
+              }}
+              onFocus={() => setIsDropdownOpen(true)}
+              className="border-white/20 bg-transparent pl-10 pr-10 text-white placeholder:text-white/40"
+            />
+            {tagSearch && (
+              <button
+                onClick={() => {
+                  setTagSearch("")
+                  setIsDropdownOpen(false)
+                  searchInputRef.current?.focus()
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {isDropdownOpen && filteredTags.length > 0 && (
+            <div
+              ref={dropdownRef}
+              className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-white/10 bg-[#121212] shadow-lg"
+            >
+              {filteredTags.map((tag) => {
+                const isSelected = selectedTags.includes(tag)
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      onToggleTag(tag)
+                      setTagSearch("")
+                      setIsDropdownOpen(false)
+                    }}
+                    className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                      isSelected
+                        ? "bg-[#8B5CF6]/20 text-[#C4B5FD]"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{tag}</span>
+                      {isSelected && <Check className="h-4 w-4" />}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {isDropdownOpen && filteredTags.length === 0 && tagSearch.trim() && (
+            <div
+              ref={dropdownRef}
+              className="absolute z-50 mt-1 w-full rounded-lg border border-white/10 bg-[#121212] p-4 text-center text-sm text-white/50"
+            >
+              No tags found
+            </div>
+          )}
+        </div>
+        {selectedTags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {selectedTags.map((tag) => (
+              <Badge
                 key={tag}
-                pressed={isActive}
-                onPressedChange={() => onToggleTag(tag)}
-                className={`rounded-full px-4 py-2 text-sm ${
-                  isActive ? "bg-[#8B5CF6] text-white" : "bg-white/10 text-white/70 hover:bg-white/20"
-                }`}
+                className="flex items-center gap-1.5 border border-[#8B5CF6]/30 bg-[#8B5CF6]/10 px-2.5 py-1 text-xs text-[#C4B5FD]"
               >
                 {tag}
-              </Toggle>
-            )
-          })}
-        </div>
+                <button
+                  onClick={() => onToggleTag(tag)}
+                  className="ml-0.5 rounded-full hover:bg-[#8B5CF6]/20"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">

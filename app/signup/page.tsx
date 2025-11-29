@@ -16,12 +16,14 @@ import {
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { Chrome } from 'lucide-react'
+import { Chrome, Eye, EyeOff } from 'lucide-react'
 
 export default function SignupPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   async function handleSubmit(formData: FormData) {
     const password = formData.get('password') as string
@@ -46,6 +48,13 @@ export default function SignupPage() {
         description: result.error,
       })
       setIsLoading(false)
+    } else if (result?.requiresConfirmation) {
+      toast({
+        title: 'Account Created',
+        description: result.message || 'Please check your email to confirm your account.',
+      })
+      setIsLoading(false)
+      // Don't redirect if email confirmation is required
     } else {
       router.push('/dashboard')
     }
@@ -68,7 +77,12 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#80808012] flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[#80808012] flex flex-col items-center justify-center px-4 py-12 relative">
+      <div className="absolute top-8 left-8">
+        <Link href="/" className="text-xl font-bold text-foreground hover:opacity-80 transition-opacity">
+          Amplifyd Studio
+        </Link>
+      </div>
       <Card className="w-full max-w-md glass-card border-border/50 backdrop-blur-xl bg-background/80 shadow-2xl">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-3xl font-bold">Sign Up</CardTitle>
@@ -77,7 +91,7 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={handleSubmit} className="space-y-4">
+          <form action={handleSubmit} className="space-y-4" suppressHydrationWarning>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -89,29 +103,59 @@ export default function SignupPage() {
                 disabled={isLoading}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2" suppressHydrationWarning>
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                disabled={isLoading}
-                minLength={6}
-              />
+              <div className="relative" suppressHydrationWarning>
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  required
+                  disabled={isLoading}
+                  minLength={6}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2" suppressHydrationWarning>
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                required
-                disabled={isLoading}
-                minLength={6}
-              />
+              <div className="relative" suppressHydrationWarning>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  required
+                  disabled={isLoading}
+                  minLength={6}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={isLoading}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
             <Button
               type="submit"
@@ -142,7 +186,7 @@ export default function SignupPage() {
             Sign Up with Google
           </Button>
         </CardContent>
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex flex-col gap-4 justify-center">
           <p className="text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link
@@ -152,6 +196,12 @@ export default function SignupPage() {
               Login
             </Link>
           </p>
+          <Link 
+            href="/" 
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+          >
+            ← Back to Home
+          </Link>
         </CardFooter>
       </Card>
     </div>

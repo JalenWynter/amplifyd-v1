@@ -9,7 +9,27 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const { data: { user } } = await supabase.auth.exchangeCodeForSession(code)
+    
+    // Ensure profile exists for OAuth users
+    if (user) {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (!existingProfile) {
+        await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email!,
+            role: 'user',
+            created_at: new Date().toISOString(),
+          })
+      }
+    }
   }
 
   // URL to redirect to after sign in process completes
