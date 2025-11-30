@@ -109,3 +109,7 @@ SELECT promote_to_admin('your-email@example.com');
 - Admin functions use `SECURITY DEFINER` - use with caution
 - Regularly audit admin users
 
+## Stripe Integration
+
+For Stripe webhook testing and setup, see [README_STRIPE.md](./README_STRIPE.md)
+

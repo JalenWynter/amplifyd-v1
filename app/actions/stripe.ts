@@ -2,15 +2,15 @@
 
 import { stripe } from "@/lib/stripe"
 import { createClient } from "@/utils/supabase/server"
+import { createOrder } from "./orders"
 
 export async function startCheckoutSession(
   reviewerId: string,
   packageId: string,
-  fileUrl: string,
-  fileTitle: string
+  trackUrl: string,
+  trackTitle: string
 ) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
   // Fetch reviewer profile with pricing_packages
   const { data: reviewerProfile, error: reviewerError } = await supabase
@@ -35,29 +35,18 @@ export async function startCheckoutSession(
     throw new Error(`Package with id "${packageId}" not found for this reviewer`)
   }
 
-  // Create order in database before Stripe session
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      artist_id: user?.id || null,
-      reviewer_id: reviewerId,
-      track_url: fileUrl,
-      track_title: fileTitle,
-      selected_package_id: packageId,
-      price_total: selectedPackage.price,
-      platform_fee: Math.floor(selectedPackage.price * 0.1), // 10% platform fee
-      status: 'pending'
-    } as any)
-    .select()
-    .single()
-
-  if (orderError || !order) {
-    throw new Error(`Failed to create order: ${orderError?.message || 'Unknown error'}`)
-  }
+  // Create order in database before Stripe session using createOrder action
+  const order = await createOrder({
+    reviewerId,
+    packageId,
+    trackUrl,
+    trackTitle,
+    priceTotal: selectedPackage.price,
+  })
 
   const orderData = order as { id: string; [key: string]: any }
 
-  // Create Stripe Checkout Session with real data
+  // Create Stripe Checkout Session with real price from package
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
     redirect_on_completion: "never",

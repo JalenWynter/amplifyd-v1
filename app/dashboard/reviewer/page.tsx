@@ -33,16 +33,17 @@ export default async function ReviewerDashboardPage() {
     redirect('/dashboard')
   }
 
-  // Fetch orders where reviewer_id matches the user
+  // Fetch orders where reviewer_id matches the user and status is 'paid' or 'open'
   const { data: orders } = await supabase
     .from('orders')
     .select('*')
     .eq('reviewer_id', user.id)
+    .in('status', ['paid', 'open'])
     .order('created_at', { ascending: false })
 
   // Calculate stats
   const completedOrders = orders?.filter(order => order.status === 'completed') || []
-  const pendingOrders = orders?.filter(order => order.status === 'pending') || []
+  const activeOrders = orders?.filter(order => order.status === 'paid' || order.status === 'open') || []
   
   const totalEarnings = completedOrders.reduce((sum, order) => {
     const reviewerEarnings = order.price_total - (order.platform_fee || 0)
@@ -87,12 +88,12 @@ export default async function ReviewerDashboardPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-white text-sm font-medium flex items-center gap-2">
                 <Clock className="h-5 w-5 text-yellow-400" />
-                Pending Reviews
+                Active Queue
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-yellow-400">{pendingOrders.length}</div>
-              <p className="text-white/50 text-sm mt-1">Awaiting your review</p>
+              <div className="text-3xl font-bold text-yellow-400">{activeOrders.length}</div>
+              <p className="text-white/50 text-sm mt-1">Paid orders awaiting review</p>
             </CardContent>
           </Card>
         </div>
@@ -109,9 +110,9 @@ export default async function ReviewerDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {pendingOrders && pendingOrders.length > 0 ? (
+            {activeOrders && activeOrders.length > 0 ? (
               <div className="space-y-3">
-                {pendingOrders.map((order: any) => (
+                {activeOrders.map((order: any) => (
                   <div 
                     key={order.id} 
                     className="flex items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"

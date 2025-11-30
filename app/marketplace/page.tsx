@@ -44,8 +44,11 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { getReviewers } from "@/app/actions/reviewers"
+import { useRouter } from "next/navigation"
 
 type ReviewerPackage = {
+  id: string
   title: string
   price: number
   description: string
@@ -67,249 +70,7 @@ type Reviewer = {
   packages: ReviewerPackage[]
 }
 
-const BASE_REVIEWERS: Reviewer[] = [
-  {
-    id: "rev-001",
-    name: "Nova Quinn",
-    avatar: "/placeholder-user.jpg",
-    verified: true,
-    tags: ["Trap", "Mixing", "Vocals"],
-    rating: 4.9,
-    reviewCount: 312,
-    startingPrice: 95,
-    bio: "Nova is a Grammy-nominated mix engineer specializing in vocal clarity and low-end punch for modern trap records. With over 10 years of experience working with billboard charting artists, she brings major label quality to independent releases.",
-    packages: [
-      {
-        title: "Quick Feedback",
-        price: 95,
-        description: "48-hour turnaround with actionable notes on your mix balance and vocal processing.",
-        deliveryTime: "2 days",
-        revisions: 0,
-        features: ["Written PDF Report", "Mix Balance Check", "Vocal Chain Advice", "Actionable Next Steps"],
-      },
-      {
-        title: "Full Mix Review",
-        price: 195,
-        description: "Detailed mix critique with timestamps, reference track comparisons, and specific plugin recommendations.",
-        deliveryTime: "3 days",
-        revisions: 1,
-        features: ["Detailed Timestamped Notes", "Reference Comparison", "Plugin Preset Recommendations", "1 Follow-up Email"],
-      },
-      {
-        title: "Premium Session",
-        price: 395,
-        description: "Live 60-minute Zoom session where we open your project (or stems) and fix issues in real-time.",
-        deliveryTime: "5 days",
-        revisions: 2,
-        features: ["60-min Live Video Call", "Live Project/Stem Review", "Custom Revision Plan", "Recording of Session"],
-      },
-    ],
-  },
-  {
-    id: "rev-002",
-    name: "Atlas Reed",
-    avatar: "/placeholder-user.jpg",
-    verified: true,
-    tags: ["House", "Sound Design", "Mastering"],
-    rating: 4.8,
-    reviewCount: 204,
-    startingPrice: 110,
-    bio: "Atlas brings festival-ready polish to melodic house and techno, focusing on energy flow and low-end translation. His masters have been played on the world's biggest stages.",
-    packages: [
-      {
-        title: "Dancefloor Check",
-        price: 110,
-        description: "Club reference check with tonal balance report to ensure your track hits hard on big systems.",
-        deliveryTime: "2 days",
-        revisions: 0,
-        features: ["Low-End Analysis", "Stereo Image Check", "Loudness Report", "Club Readiness Score"],
-      },
-      {
-        title: "Mastering Notes",
-        price: 220,
-        description: "Comprehensive mastering critique with LUFS targets, dynamic range analysis, and EQ suggestions.",
-        deliveryTime: "4 days",
-        revisions: 1,
-        features: ["Full Mastering Critique", "Dynamic Range Analysis", "EQ & Compression Tips", "Streaming Platform Prep"],
-      },
-      {
-        title: "VIP Residency",
-        price: 450,
-        description: "Monthly mentorship with shared project board to guide your EP or album to completion.",
-        deliveryTime: "30 days",
-        revisions: 4,
-        features: ["4 Weekly Check-ins", "Shared Trello/Notion Board", "Unlimited Quick Questions", "Final Master Polish"],
-      },
-    ],
-  },
-  {
-    id: "rev-003",
-    name: "Mara Sol",
-    avatar: "/placeholder-user.jpg",
-    verified: false,
-    tags: ["Indie", "Songwriting", "Production"],
-    rating: 4.95,
-    reviewCount: 158,
-    startingPrice: 80,
-    bio: "Mara mentors indie artists on storytelling, arrangement dynamics, and vocal production for sync placements. Her own songs have been featured in top Netflix series.",
-    packages: [
-      {
-        title: "Lyric Audit",
-        price: 80,
-        description: "Narrative-focused review checking for prosody, rhyme schemes, and emotional impact.",
-        deliveryTime: "3 days",
-        revisions: 0,
-        features: ["Line-by-Line Lyric Analysis", "Rhyme Scheme Suggestions", "Emotional Arc Check", "Title Alternatives"],
-      },
-      {
-        title: "Production Deep Dive",
-        price: 165,
-        description: "Arrangement critique with instrument balance tips to make your indie track sound expensive.",
-        deliveryTime: "5 days",
-        revisions: 1,
-        features: ["Arrangement Structure Edit", "Instrumentation Review", "Vocal Production Tips", "Sync Potential Rating"],
-      },
-      {
-        title: "Complete Blueprint",
-        price: 320,
-        description: "Full roadmap covering songwriting, production, and release strategy for your single.",
-        deliveryTime: "7 days",
-        revisions: 2,
-        features: ["Song & Production Review", "Release Timeline Creation", "Pitching Strategy", "Asset Checklist"],
-      },
-    ],
-  },
-  {
-    id: "rev-004",
-    name: "Kairo Vega",
-    avatar: "/placeholder-user.jpg",
-    verified: true,
-    tags: ["EDM", "Mastering", "Sound Design"],
-    rating: 4.87,
-    reviewCount: 189,
-    startingPrice: 120,
-    bio: "Kairo crafts high-impact EDM drops, ensuring low-end translation across arenas and streaming. He specializes in Dubstep, Future Bass, and Drum & Bass.",
-    packages: [
-      {
-        title: "Drop Surgery",
-        price: 120,
-        description: "Detailed low-end & transient report specifically for your drop to make it hit harder.",
-        deliveryTime: "2 days",
-        revisions: 0,
-        features: ["Kick & Bass Phase Check", "Transient Shaping Tips", "Sidechain Analysis", "Impact Assessment"],
-      },
-      {
-        title: "Headliner Master",
-        price: 260,
-        description: "Mastering critique with limiter settings and LUFS targets for competitive loudness.",
-        deliveryTime: "4 days",
-        revisions: 1,
-        features: ["Competitive Loudness targets", "Limiter Settings Guide", "Frequency Balance Report", "Stem Mastering Tips"],
-      },
-      {
-        title: "Signature Session",
-        price: 420,
-        description: "Live design session focusing on synth & FX balance to define your unique sound.",
-        deliveryTime: "6 days",
-        revisions: 2,
-        features: ["90-min Live Sound Design", "Serum/Vital Patch Reviews", "FX Chain Breakdown", "Custom Sample Pack"],
-      },
-    ],
-  },
-  {
-    id: "rev-005",
-    name: "Ivy Monroe",
-    avatar: "/placeholder-user.jpg",
-    verified: false,
-    tags: ["Pop", "Songwriting", "Vocal Production"],
-    rating: 4.93,
-    reviewCount: 276,
-    startingPrice: 105,
-    bio: "Ivy helps pop vocalists craft radio-ready stacks with pristine tuning and emotive delivery. She has vocal produced for top 40 artists.",
-    packages: [
-      {
-        title: "Hook Audit",
-        price: 105,
-        description: "Melodic & lyric feedback with harmony suggestions to make your chorus stuck in heads.",
-        deliveryTime: "2 days",
-        revisions: 0,
-        features: ["Melody & Hook Analysis", "Harmony Layering Ideas", "Catchiness Score", "Lyric Tweaks"],
-      },
-      {
-        title: "Vocal Stack Review",
-        price: 215,
-        description: "Critique focusing on tuning, compression, and FX for a professional vocal sound.",
-        deliveryTime: "4 days",
-        revisions: 1,
-        features: ["Tuning Accuracy Check", "Compression Settings", "Reverb/Delay Throw Ideas", "De-essing Advice"],
-      },
-      {
-        title: "Full Release Plan",
-        price: 360,
-        description: "Arrangement critique + marketing plan to launch your pop single effectively.",
-        deliveryTime: "7 days",
-        revisions: 2,
-        features: ["Production Polish Notes", "Social Media Content Plan", "Spotify Pitching Guide", "Image Consulting"],
-      },
-    ],
-  },
-  {
-    id: "rev-006",
-    name: "Sage O'Connor",
-    avatar: "/placeholder-user.jpg",
-    verified: true,
-    tags: ["Ambient", "Mixing", "Mastering"],
-    rating: 4.85,
-    reviewCount: 142,
-    startingPrice: 85,
-    bio: "Sage brings cinematic depth to ambient and neo-classical projects with focus on width and spatial FX. Perfect for composers and experimental artists.",
-    packages: [
-      {
-        title: "Texture Review",
-        price: 85,
-        description: "Feedback on pads, drones, and spatial texture to add depth to your composition.",
-        deliveryTime: "3 days",
-        revisions: 0,
-        features: ["Texture Layering Tips", "Frequency Masking Check", "Atmosphere Enhancement", "Sample Selection"],
-      },
-      {
-        title: "Spatial Mix Audit",
-        price: 175,
-        description: "3D audio critique with reverb & delay insights for an immersive listening experience.",
-        deliveryTime: "5 days",
-        revisions: 1,
-        features: ["Stereo Field Analysis", "Reverb Depth Check", "Binaural Processing Tips", "Panning Strategy"],
-      },
-      {
-        title: "Complete Atmos Pass",
-        price: 330,
-        description: "Full review with Dolby Atmos prep checklist and object placement suggestions.",
-        deliveryTime: "8 days",
-        revisions: 2,
-        features: ["Dolby Atmos Readiness", "Object Placement Ideas", "Bed Track Balance", "Immersive Master Check"],
-      },
-    ],
-  },
-]
-
-const DUPLICATION_FACTOR = 4
-const MOCK_REVIEWERS: Reviewer[] = Array.from({ length: DUPLICATION_FACTOR }, (_, index) =>
-  BASE_REVIEWERS.map((reviewer) => ({
-    ...reviewer,
-    id: `${reviewer.id}-${index}`,
-    name: `${reviewer.name} ${index === 0 ? "" : `•${index + 1}`}`.trim(),
-  })),
-).flat()
-
-const TAG_OPTIONS = Array.from(new Set(MOCK_REVIEWERS.flatMap((reviewer) => reviewer.tags))).sort()
-
-const PRICE_RANGE = MOCK_REVIEWERS.reduce(
-  (acc, reviewer) => ({
-    min: Math.min(acc.min, reviewer.startingPrice),
-    max: Math.max(acc.max, reviewer.startingPrice),
-  }),
-  { min: Number.MAX_SAFE_INTEGER, max: 0 },
-)
+// TAG_OPTIONS and PRICE_RANGE will be calculated from fetched data
 
 type SortOption = "rating" | "price-asc" | "price-desc" | "reviews"
 
@@ -322,11 +83,29 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 
 function useReviewerFilters(reviewers: Reviewer[]) {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({
-    min: PRICE_RANGE.min,
-    max: PRICE_RANGE.max,
-  })
+  
+  // Calculate price range from reviewers
+  const calculatedPriceRange = useMemo(() => {
+    if (reviewers.length === 0) {
+      return { min: 0, max: 1000 }
+    }
+    const prices = reviewers.map((r) => r.startingPrice).filter((p) => p > 0)
+    if (prices.length === 0) {
+      return { min: 0, max: 1000 }
+    }
+    return {
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+    }
+  }, [reviewers])
+
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>(calculatedPriceRange)
   const [sortOption, setSortOption] = useState<SortOption>("rating")
+
+  // Update price range when reviewers change
+  useEffect(() => {
+    setPriceRange(calculatedPriceRange)
+  }, [calculatedPriceRange])
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -418,19 +197,56 @@ function useInfiniteReviewers(reviewers: Reviewer[], pageSize = 6) {
 }
 
 export default function MarketplacePage() {
+  const router = useRouter()
   const [selectedReviewer, setSelectedReviewer] = useState<Reviewer | null>(null)
   const [open, setOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [reviewers, setReviewers] = useState<Reviewer[]>([])
+  const [loadingReviewers, setLoadingReviewers] = useState(true)
+  const [tagOptions, setTagOptions] = useState<string[]>([])
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000 })
+
   const {
     filteredReviewers,
     selectedTags,
     toggleTag,
-    priceRange,
+    priceRange: filterPriceRange,
     updatePrice,
     sortOption,
     setSortOption,
-  } = useReviewerFilters(MOCK_REVIEWERS)
+  } = useReviewerFilters(reviewers)
   const { visibleReviewers, loadMoreRef, isLoading, hasMore } = useInfiniteReviewers(filteredReviewers)
+
+  // Fetch reviewers from Supabase
+  useEffect(() => {
+    async function fetchReviewers() {
+      try {
+        const data = await getReviewers()
+        setReviewers(data)
+        
+        // Calculate tag options from fetched data
+        const allTags = Array.from(new Set(data.flatMap((reviewer) => reviewer.tags))).sort()
+        setTagOptions(allTags)
+        
+        // Calculate price range from fetched data
+        if (data.length > 0) {
+          const prices = data.map((r) => r.startingPrice).filter((p) => p > 0)
+          if (prices.length > 0) {
+            setPriceRange({
+              min: Math.min(...prices),
+              max: Math.max(...prices),
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching reviewers:', error)
+      } finally {
+        setLoadingReviewers(false)
+      }
+    }
+
+    fetchReviewers()
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -491,13 +307,14 @@ export default function MarketplacePage() {
 
         <section className="grid gap-8 lg:grid-cols-[320px_1fr]">
           <FilterPanel
-            tags={TAG_OPTIONS}
+            tags={tagOptions}
             selectedTags={selectedTags}
             onToggleTag={toggleTag}
-            priceRange={priceRange}
+            priceRange={filterPriceRange}
             updatePrice={updatePrice}
             sortOption={sortOption}
             onSortChange={setSortOption}
+            globalPriceRange={priceRange}
           />
 
           <div className="space-y-6">
@@ -509,6 +326,12 @@ export default function MarketplacePage() {
               </p>
             </div>
 
+            {loadingReviewers ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              </div>
+            ) : (
+              <>
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               <p className="text-sm text-white/70">
                 Showing <span className="font-semibold text-white">{visibleReviewers.length}</span> of{" "}
@@ -534,6 +357,12 @@ export default function MarketplacePage() {
               ))}
             </div>
 
+                {visibleReviewers.length === 0 && !loadingReviewers && (
+                  <div className="text-center py-12">
+                    <p className="text-white/50">No reviewers found matching your filters.</p>
+                  </div>
+                )}
+
             <div ref={loadMoreRef} className="flex flex-col items-center justify-center py-8">
               {isLoading && (
                 <div className="flex items-center gap-2 text-white/70">
@@ -545,6 +374,8 @@ export default function MarketplacePage() {
                 <p className="text-sm text-white/50">All reviewers loaded</p>
               )}
             </div>
+              </>
+            )}
           </div>
         </section>
       </div>
@@ -562,6 +393,7 @@ function FilterPanel({
   updatePrice,
   sortOption,
   onSortChange,
+  globalPriceRange,
 }: {
   tags: string[]
   selectedTags: string[]
@@ -570,6 +402,7 @@ function FilterPanel({
   updatePrice: (key: "min" | "max", value: number) => void
   sortOption: SortOption
   onSortChange: (value: SortOption) => void
+  globalPriceRange: { min: number; max: number }
 }) {
   const [minInput, setMinInput] = useState<string>(String(priceRange.min))
   const [maxInput, setMaxInput] = useState<string>(String(priceRange.max))
@@ -723,7 +556,7 @@ function FilterPanel({
         <div className="flex gap-2">
           <Input
             type="number"
-            min={PRICE_RANGE.min}
+            min={globalPriceRange.min}
             max={priceRange.max}
             value={minInput}
             onChange={handleMinChange}
@@ -732,7 +565,7 @@ function FilterPanel({
           <Input
             type="number"
             min={priceRange.min}
-            max={PRICE_RANGE.max}
+            max={globalPriceRange.max}
             value={maxInput}
             onChange={handleMaxChange}
             className={`border-white/20 bg-transparent text-white ${isMaxEmpty ? "border-red-500" : ""}`}
@@ -742,7 +575,7 @@ function FilterPanel({
           <p className="text-xs text-red-400">Both price fields are required.</p>
         )}
         <p className="text-xs text-white/50">
-          Global range ${PRICE_RANGE.min} – ${PRICE_RANGE.max}
+          Global range ${globalPriceRange.min} – ${globalPriceRange.max}
         </p>
       </div>
 
@@ -813,8 +646,14 @@ function ReviewerCard({
   )
 }
 
-function PackageCard({ pkg }: { pkg: ReviewerPackage }) {
+function PackageCard({ pkg, reviewerId }: { pkg: ReviewerPackage; reviewerId: string }) {
+  const router = useRouter()
   const [isExpanded, setIsExpanded] = useState(false)
+
+  const handleBookNow = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card expansion when clicking button
+    router.push(`/checkout?reviewerId=${reviewerId}&packageId=${pkg.id}`)
+  }
 
   return (
     <div
@@ -865,8 +704,11 @@ function PackageCard({ pkg }: { pkg: ReviewerPackage }) {
             ))}
           </div>
 
-          <Button className="w-full bg-[#8B5CF6] text-white hover:bg-[#7C3AED]">
-            Select Package (${pkg.price})
+          <Button 
+            onClick={handleBookNow}
+            className="w-full bg-[#8B5CF6] text-white hover:bg-[#7C3AED]"
+          >
+            Book Now (${pkg.price})
           </Button>
         </div>
       )}
@@ -944,7 +786,7 @@ function ReviewerDialog({
                     <h3 className="mb-4 text-xl font-bold text-white">Available Packages</h3>
                     <div className="space-y-4">
                       {reviewer.packages.map((pkg) => (
-                        <PackageCard key={pkg.title} pkg={pkg} />
+                        <PackageCard key={pkg.id || pkg.title} pkg={pkg} reviewerId={reviewer.id} />
                       ))}
                     </div>
                   </section>

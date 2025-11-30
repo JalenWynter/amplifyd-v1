@@ -6,7 +6,9 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "stripe:listen": "echo 'To test webhooks locally, use one of these options:' && echo '1. Install Stripe CLI: brew install stripe/stripe-cli/stripe' && echo '2. Use Stripe Dashboard: https://dashboard.stripe.com/test/webhooks' && echo '3. Use ngrok or similar tunnel service' && echo '' && echo 'Then run: stripe listen --forward-to localhost:3000/api/webhooks/stripe'",
+    "stripe:test": "node -e \"console.log('Stripe webhook testing requires the Stripe CLI. See README_STRIPE.md for alternatives.')\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -11,18 +11,18 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 export default function Checkout({ 
   reviewerId, 
   packageId, 
-  fileUrl, 
-  fileTitle 
+  trackUrl, 
+  trackTitle 
 }: { 
   reviewerId: string
   packageId: string
-  fileUrl: string
-  fileTitle: string
+  trackUrl: string
+  trackTitle: string
 }) {
   const fetchClientSecret = useCallback(async () => {
-    const result = await startCheckoutSession(reviewerId, packageId, fileUrl, fileTitle)
+    const result = await startCheckoutSession(reviewerId, packageId, trackUrl, trackTitle)
     return result.clientSecret || null
-  }, [reviewerId, packageId, fileUrl, fileTitle])
+  }, [reviewerId, packageId, trackUrl, trackTitle])
 
   return (
     <div id="checkout" className="w-full">

@@ -6,15 +6,14 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Checkout from "@/components/checkout"
 import { createClient } from "@/utils/supabase/client"
-import { formatPrice } from "@/lib/products"
 
 function CheckoutContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const reviewerId = searchParams.get("reviewerId")
   const packageId = searchParams.get("packageId")
-  const fileUrl = searchParams.get("fileUrl") || ""
-  const fileTitle = searchParams.get("fileTitle") || "Untitled Track"
+  const trackUrl = searchParams.get("trackUrl") || ""
+  const trackTitle = searchParams.get("trackTitle") || "Untitled Track"
   
   const [reviewer, setReviewer] = useState<any>(null)
   const [selectedPackage, setSelectedPackage] = useState<any>(null)
@@ -102,12 +101,12 @@ function CheckoutContent() {
           <p className="text-gray-400">Secure checkout powered by Stripe</p>
         </div>
 
-        {fileUrl && (
+        {trackUrl && (
           <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-6 mb-8">
             <h3 className="text-lg font-semibold text-white mb-3">Track</h3>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              {fileTitle}
+              {trackTitle}
             </div>
           </div>
         )}
@@ -151,8 +150,8 @@ function CheckoutContent() {
           <Checkout 
             reviewerId={reviewerId}
             packageId={packageId}
-            fileUrl={fileUrl}
-            fileTitle={fileTitle}
+            trackUrl={trackUrl}
+            trackTitle={trackTitle}
           />
         </div>
       </div>
