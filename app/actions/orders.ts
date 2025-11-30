@@ -3,9 +3,14 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-// Helper function to extract file path from Supabase storage URL
+// Helper function to extract file path from Supabase storage URL or storage path
 function extractFilePathFromUrl(url: string, bucketName: string): string | null {
   if (!url) return null
+  
+  // If it's already a storage path (format: bucketName/path), extract the path part
+  if (url.startsWith(`${bucketName}/`) && !url.startsWith('http')) {
+    return url.substring(bucketName.length + 1) // Remove "bucketName/" prefix
+  }
   
   // Handle different URL formats:
   // 1. https://[project].supabase.co/storage/v1/object/public/reviews/path/to/file.mp4
@@ -133,6 +138,95 @@ export async function getArtistOrdersWithReviews() {
       )
     `)
     .eq('artist_id', user.id)
+    .order('created_at', { ascending: false })
+
+  if (!orders) return []
+
+  // Sign media URLs for secure access
+  const ordersWithSignedUrls = await Promise.all(
+    orders.map(async (order: any) => {
+      if (order.reviews && Array.isArray(order.reviews)) {
+        const signedReviews = await Promise.all(
+          order.reviews.map(async (review: any) => {
+            const signedReview = { ...review }
+
+            // Sign video URL if exists
+            if (review.video_url) {
+              try {
+                const filePath = extractFilePathFromUrl(review.video_url, 'reviews')
+                if (filePath) {
+                  const { data: signedUrl } = await supabase.storage
+                    .from('reviews')
+                    .createSignedUrl(filePath, 3600)
+                  if (signedUrl) {
+                    signedReview.video_url = signedUrl.signedUrl
+                  }
+                }
+              } catch (error) {
+                console.error('Error signing video URL:', error)
+                // Keep original URL if signing fails
+              }
+            }
+
+            // Sign audio URL if exists
+            if (review.audio_url) {
+              try {
+                const filePath = extractFilePathFromUrl(review.audio_url, 'reviews')
+                if (filePath) {
+                  const { data: signedUrl } = await supabase.storage
+                    .from('reviews')
+                    .createSignedUrl(filePath, 3600)
+                  if (signedUrl) {
+                    signedReview.audio_url = signedUrl.signedUrl
+                  }
+                }
+              } catch (error) {
+                console.error('Error signing audio URL:', error)
+                // Keep original URL if signing fails
+              }
+            }
+
+            return signedReview
+          })
+        )
+        return { ...order, reviews: signedReviews }
+      }
+      return order
+    })
+  )
+
+  return ordersWithSignedUrls
+}
+
+export async function getReviewerOrdersWithReviews() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // Get orders for the reviewer with artist info and reviews
+  const { data: orders } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      artist:profiles!artist_id(full_name, avatar_url),
+      reviews (
+        id,
+        reviewer_title,
+        summary,
+        highlights,
+        tags,
+        scorecard_16,
+        overall_rating,
+        written_feedback,
+        video_url,
+        audio_url,
+        reviewer_media_title,
+        reviewer_media_description,
+        published_date,
+        created_at
+      )
+    `)
+    .eq('reviewer_id', user.id)
     .order('created_at', { ascending: false })
 
   if (!orders) return []

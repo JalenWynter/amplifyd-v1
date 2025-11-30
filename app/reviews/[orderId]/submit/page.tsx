@@ -187,7 +187,10 @@ export default function ReviewSubmitPage() {
 
       // Sanitize filename
       const sanitizedFileName = sanitizeFileName(file.name)
-      const filePath = `reviews/${orderId}/${Date.now()}-${sanitizedFileName}`
+      
+      // Create standardized path: userId/timestamp-sanitizedFilename
+      // Note: We save the full path (bucket/path) to database, not a signed URL
+      const filePath = `${currentUser.id}/${Date.now()}-${sanitizedFileName}`
 
       // Determine content type
       let contentType = file.type
@@ -198,8 +201,8 @@ export default function ReviewSubmitPage() {
         else if (file.name.endsWith('.mp4')) contentType = 'video/mp4'
       }
 
-      // Upload to reviews bucket (or submissions if reviews doesn't exist)
-      const bucketName = 'reviews' // Try reviews bucket first
+      // Upload to reviews bucket (force correct bucket, no fallback)
+      const bucketName = 'reviews'
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(filePath, file, {
@@ -208,31 +211,23 @@ export default function ReviewSubmitPage() {
           contentType: contentType,
         })
 
-      // Fallback to submissions bucket if reviews doesn't exist
-      let finalBucket = bucketName
-      if (uploadError && uploadError.message.includes('not found')) {
-        const { data: fallbackData, error: fallbackError } = await supabase.storage
-          .from('submissions')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: contentType,
-          })
-
-        if (fallbackError) {
-          throw fallbackError
-        }
-        finalBucket = 'submissions'
-      } else if (uploadError) {
-        throw uploadError
+      if (uploadError) {
+        throw new Error(`Failed to upload to ${bucketName} bucket: ${uploadError.message}`)
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from(finalBucket)
-        .getPublicUrl(filePath)
+      // Save the full storage path (bucket/path) to database, NOT a signed URL
+      // The display page will generate signed URLs on load
+      // Format: reviews/userId/timestamp-filename.ext
+      const storagePath = `${bucketName}/${filePath}`
+      
+      // For preview, generate a signed URL (expires in 1 hour)
+      const { data: signedUrlData } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(filePath, 3600)
 
-      setResponseFileUrl(urlData.publicUrl)
+      // Save the storage path to state (this will be saved to DB on submit)
+      // The display page will extract the path and generate fresh signed URLs
+      setResponseFileUrl(storagePath)
       setResponseFile(file)
     } catch (err: any) {
       console.error('Error uploading file:', err)

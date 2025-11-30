@@ -76,9 +76,16 @@ async function getOrderWithReview(orderId: string) {
   // Sign media URLs for secure access
   const signedReview = { ...review }
 
-  // Helper function to extract file path from Supabase storage URL
+  // Helper function to extract file path from Supabase storage URL or storage path
   const extractFilePathFromUrl = (url: string, bucketName: string): string | null => {
     if (!url) return null
+    
+    // If it's already a storage path (format: bucketName/path), extract the path part
+    if (url.startsWith(`${bucketName}/`) && !url.startsWith('http')) {
+      return url.substring(bucketName.length + 1) // Remove "bucketName/" prefix
+    }
+    
+    // If it's a full URL, extract the path
     try {
       const urlObj = new URL(url)
       const pathParts = urlObj.pathname.split('/')
@@ -89,6 +96,7 @@ async function getOrderWithReview(orderId: string) {
       const match = url.match(new RegExp(`/${bucketName}/([^?]+)`))
       return match ? match[1] : null
     } catch (error) {
+      // If URL parsing fails, try regex extraction
       const match = url.match(new RegExp(`/${bucketName}/([^?]+)`))
       return match ? match[1] : null
     }

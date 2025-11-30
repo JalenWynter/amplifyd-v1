@@ -114,6 +114,16 @@ export default async function ReviewerDashboardPage() {
                 variant="outline" 
                 className="w-full justify-start border-white/20 bg-white/5 text-white hover:bg-white/10"
               >
+                <Link href="/dashboard/reviewer/reviews">
+                  <Music className="mr-2 h-4 w-4" />
+                  My Reviews
+                </Link>
+              </Button>
+              <Button 
+                asChild 
+                variant="outline" 
+                className="w-full justify-start border-white/20 bg-white/5 text-white hover:bg-white/10"
+              >
                 <Link href="/dashboard/reviewer/settings">
                   <Settings className="mr-2 h-4 w-4" />
                   Settings & Pricing

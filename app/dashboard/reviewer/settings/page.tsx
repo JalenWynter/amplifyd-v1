@@ -28,6 +28,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { RealtimeOrdersListener } from '@/components/realtime-orders-listener'
+import { updateReviewerProfile } from '@/app/actions/profile'
+import { useToast } from '@/hooks/use-toast'
 
 type PricingPackage = {
   id: string
@@ -56,6 +58,7 @@ const COMMON_TAGS = [
 
 export default function ReviewerSettingsPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -184,16 +187,7 @@ export default function ReviewerSettingsPage() {
     setMessage(null)
 
     try {
-      const supabase = createClient()
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-
-      if (!currentUser) {
-        setMessage({ type: 'error', text: 'Not authenticated' })
-        setSaving(false)
-        return
-      }
-
-      // Validate required fields
+      // Validate required fields (client-side validation)
       if (!profileData.full_name.trim()) {
         setMessage({ type: 'error', text: 'Full name is required' })
         setSaving(false)
@@ -215,22 +209,17 @@ export default function ReviewerSettingsPage() {
         }
       }
 
-      // Update only the current reviewer's profile (enforced by RLS and .eq('id', currentUser.id))
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: profileData.full_name.trim(),
-          bio: profileData.bio.trim(),
-          tags: profileData.tags,
-          avatar_url: profileData.avatar_url.trim() || null,
-          pricing_packages: profileData.pricing_packages,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', currentUser.id) // Ensure only updating own profile
+      // Use server action to update profile
+      const result = await updateReviewerProfile({
+        full_name: profileData.full_name,
+        bio: profileData.bio,
+        tags: profileData.tags,
+        avatar_url: profileData.avatar_url,
+        pricing_packages: profileData.pricing_packages,
+      })
 
-      if (error) {
-        console.error('Error saving profile:', error)
-        setMessage({ type: 'error', text: `Failed to save: ${error.message}` })
+      if (!result.success) {
+        setMessage({ type: 'error', text: result.error || 'Failed to save profile' })
         setSaving(false)
         return
       }
@@ -353,6 +342,51 @@ export default function ReviewerSettingsPage() {
     })
   }
 
+  const handleRemoveAvatar = async () => {
+    if (!profileData.avatar_url) return
+
+    setUploadingAvatar(true)
+    setMessage(null)
+
+    try {
+      // Remove avatar by setting it to null
+      const result = await updateReviewerProfile({
+        full_name: profileData.full_name,
+        bio: profileData.bio,
+        tags: profileData.tags,
+        avatar_url: null,
+        pricing_packages: profileData.pricing_packages,
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to remove avatar')
+      }
+
+      // Update local state
+      setProfileData({
+        ...profileData,
+        avatar_url: ''
+      })
+
+      // Show success toast
+      toast({
+        title: 'Avatar Removed',
+        description: 'Your profile picture has been removed successfully.',
+      })
+
+      setMessage({ type: 'success', text: 'Profile picture removed successfully!' })
+      setTimeout(() => setMessage(null), 3000)
+      
+      // Refresh to show updated avatar
+      router.refresh()
+    } catch (error: any) {
+      console.error('Error removing avatar:', error)
+      setMessage({ type: 'error', text: error.message || 'Failed to remove image' })
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -384,52 +418,77 @@ export default function ReviewerSettingsPage() {
         return
       }
 
-      // Create a unique filename: user_id/timestamp_filename
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${currentUser.id}/${Date.now()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
+      // Sanitize filename
+      const sanitizeFileName = (fileName: string): string => {
+        const lastDotIndex = fileName.lastIndexOf('.')
+        const extension = lastDotIndex !== -1 ? fileName.slice(lastDotIndex) : ''
+        const nameWithoutExt = lastDotIndex !== -1 ? fileName.slice(0, lastDotIndex) : fileName
 
-      // Upload to avatars bucket (or avatars folder in public bucket)
-      const bucketName = 'avatars'
+        const sanitized = nameWithoutExt
+          .replace(/[^a-zA-Z0-9._-]/g, '_')
+          .replace(/_{2,}/g, '_')
+          .replace(/^_+|_+$/g, '')
+
+        return sanitized + extension
+      }
+
+      // Create standardized path: userId/timestamp-sanitizedFilename
+      const sanitizedFileName = sanitizeFileName(file.name)
+      let filePath = `${currentUser.id}/${Date.now()}-${sanitizedFileName}`
+
+      // Normalize MIME type (Supabase may reject image/jpeg, use image/jpg)
+      let contentType = file.type
+      if (contentType === 'image/jpeg' || contentType.toLowerCase() === 'image/jpeg') {
+        contentType = 'image/jpg'
+      }
+
+      // Upload to user-avatars bucket (dedicated bucket for profile pictures)
+      const bucketName = 'user-avatars'
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true, // Allow overwriting
-          contentType: file.type,
+          contentType: contentType,
         })
 
-      // Fallback to public bucket if avatars doesn't exist
-      let finalBucket = bucketName
-      if (uploadError && uploadError.message.includes('not found')) {
-        const { data: fallbackData, error: fallbackError } = await supabase.storage
-          .from('public')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: true,
-            contentType: file.type,
-          })
-
-        if (fallbackError) {
-          throw fallbackError
-        }
-        finalBucket = 'public'
-      } else if (uploadError) {
-        throw uploadError
+      if (uploadError) {
+        throw new Error(`Failed to upload avatar: ${uploadError.message}`)
       }
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from(finalBucket)
+        .from(bucketName)
         .getPublicUrl(filePath)
 
-      // Update profile data with new avatar URL
-      setProfileData({
-        ...profileData,
-        avatar_url: urlData.publicUrl
+      const publicUrl = urlData.publicUrl
+
+      // Immediately save to database (don't wait for "Save All Changes")
+      const result = await updateReviewerProfile({
+        full_name: profileData.full_name,
+        bio: profileData.bio,
+        tags: profileData.tags,
+        avatar_url: publicUrl,
+        pricing_packages: profileData.pricing_packages,
       })
 
-      setMessage({ type: 'success', text: 'Profile picture uploaded successfully!' })
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save avatar URL to database')
+      }
+
+      // Update local state
+      setProfileData({
+        ...profileData,
+        avatar_url: publicUrl
+      })
+
+      // Show success toast
+      toast({
+        title: 'Avatar Updated',
+        description: 'Your profile picture has been saved successfully.',
+      })
+
+      setMessage({ type: 'success', text: 'Profile picture uploaded and saved successfully!' })
       setTimeout(() => setMessage(null), 3000)
     } catch (error: any) {
       console.error('Error uploading avatar:', error)
@@ -581,32 +640,47 @@ export default function ReviewerSettingsPage() {
                     id="avatar-upload"
                     disabled={uploadingAvatar}
                   />
-                  <label
-                    htmlFor="avatar-upload"
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-white/20 bg-white/5 text-white hover:bg-white/10"
-                      disabled={uploadingAvatar}
-                      asChild
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="avatar-upload"
+                      className="flex items-center gap-2 cursor-pointer"
                     >
-                      <span>
-                        {uploadingAvatar ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="mr-2 h-4 w-4" />
-                            {profileData.avatar_url ? 'Change Picture' : 'Upload Picture'}
-                          </>
-                        )}
-                      </span>
-                    </Button>
-                  </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-white/20 bg-white/5 text-white hover:bg-white/10"
+                        disabled={uploadingAvatar}
+                        asChild
+                      >
+                        <span>
+                          {uploadingAvatar ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="mr-2 h-4 w-4" />
+                              {profileData.avatar_url ? 'Change Picture' : 'Upload Picture'}
+                            </>
+                          )}
+                        </span>
+                      </Button>
+                    </label>
+                    {profileData.avatar_url && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRemoveAvatar}
+                        disabled={uploadingAvatar}
+                        className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-white/50 text-xs mt-1">
                     JPG, PNG, or WebP (max 2MB, recommended: 200x200px)
                   </p>

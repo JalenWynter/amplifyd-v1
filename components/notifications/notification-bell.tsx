@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Bell, X, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 
 export function NotificationBell() {
   const router = useRouter()
+  const pathname = usePathname()
   const { toast } = useToast()
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -25,22 +26,35 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(true)
   const [expandedNotification, setExpandedNotification] = useState<string | null>(null)
 
+  // Function to load notifications - only fetch unread
+  const loadNotifications = useCallback(async () => {
+    try {
+      // Only fetch unread notifications - read ones should disappear after interaction
+      const unreadNotifications = await getUnreadNotifications()
+      
+      setNotifications(unreadNotifications)
+      setUnreadCount(unreadNotifications.length)
+    } catch (error) {
+      console.error('Error loading notifications:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   // Fetch initial notifications
   useEffect(() => {
-    async function loadNotifications() {
-      try {
-        const unread = await getUnreadNotifications()
-        setNotifications(unread)
-        setUnreadCount(unread.length)
-      } catch (error) {
-        console.error('Error loading notifications:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadNotifications()
-  }, [])
+  }, [loadNotifications])
+
+  // Refresh notifications when route changes (to ensure we have latest state from DB)
+  useEffect(() => {
+    // Small delay to ensure database updates have propagated
+    const timeoutId = setTimeout(() => {
+      loadNotifications()
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [pathname, loadNotifications])
 
   // Set up real-time subscription
   useEffect(() => {
@@ -67,17 +81,24 @@ export function NotificationBell() {
             if (!isMounted) return
             const newNotification = payload.new as Notification
             
-            // Add to notifications list
-            setNotifications((prev) => [newNotification, ...prev])
-            
-            // Increment unread count
-            setUnreadCount((prev) => prev + 1)
-
-            // Show toast
-            toast({
-              title: 'New Notification!',
-              description: newNotification.title,
+            // Add new notification if it doesn't already exist in the list
+            setNotifications((prev) => {
+              // Check if notification already exists
+              if (prev.some(n => n.id === newNotification.id)) {
+                return prev
+              }
+              return [newNotification, ...prev]
             })
+            
+            // Only increment unread count and show toast if it's unread
+            if (!newNotification.is_read) {
+              setUnreadCount((prev) => prev + 1)
+              // Show toast only for unread notifications
+              toast({
+                title: 'New Notification!',
+                description: newNotification.title,
+              })
+            }
           }
         )
         .on(
@@ -92,12 +113,17 @@ export function NotificationBell() {
             if (!isMounted) return
             const updatedNotification = payload.new as Notification
             
-            // Update notification in list if it was marked as read
+            // Remove from list if marked as read - read notifications should disappear
             if (updatedNotification.is_read) {
-              setNotifications((prev) =>
-                prev.filter((n) => n.id !== updatedNotification.id)
-              )
+              setNotifications((prev) => prev.filter((n) => n.id !== updatedNotification.id))
               setUnreadCount((prev) => Math.max(0, prev - 1))
+            } else {
+              // Update if still unread
+              setNotifications((prev) =>
+                prev.map((n) =>
+                  n.id === updatedNotification.id ? updatedNotification : n
+                )
+              )
             }
           }
         )
@@ -183,16 +209,15 @@ export function NotificationBell() {
       return
     }
 
-    // Mark as read immediately (removes from unread count, but keeps in list)
+    // Mark as read immediately
     if (!notification.is_read) {
-      await markAsRead(notification.id)
-      // Update the notification in state to mark it as read (but don't remove it)
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === notification.id ? { ...n, is_read: true } : n
-        )
-      )
-      setUnreadCount((prev) => Math.max(0, prev - 1))
+      const result = await markAsRead(notification.id)
+      
+      if (result.success) {
+        // Remove from list immediately - once read, it should disappear
+        setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
+        setUnreadCount((prev) => Math.max(0, prev - 1))
+      }
     }
 
     // Toggle expanded state
@@ -231,18 +256,54 @@ export function NotificationBell() {
   }
 
   const handleMarkAllAsRead = async () => {
-    await markAllAsRead()
-    setNotifications([])
-    setUnreadCount(0)
+    const result = await markAllAsRead()
     
-    toast({
-      title: 'All notifications marked as read',
-      description: 'All notifications have been cleared.',
-    })
+    if (result.success) {
+      // Clear all notifications from list - once read, they should disappear
+      setNotifications([])
+      setUnreadCount(0)
+      
+      toast({
+        title: 'All notifications marked as read',
+        description: 'All notifications have been cleared.',
+      })
+    }
+  }
+
+  // When popover opens, mark all visible unread notifications as read but keep them visible temporarily
+  // When popover closes, remove read notifications
+  const handleOpenChange = async (open: boolean) => {
+    setIsOpen(open)
+    
+    if (open) {
+      // When opening, mark all currently visible unread notifications as read
+      const unreadNotifications = notifications.filter(n => !n.is_read)
+      
+      if (unreadNotifications.length > 0) {
+        // OPTIMISTIC UPDATE: Immediately hide the badge and update local state
+        setUnreadCount(0)
+        setNotifications((prev) =>
+          prev.map((n) =>
+            !n.is_read ? { ...n, is_read: true } : n
+          )
+        )
+        
+        // Sync with server in the background (don't await - let it happen async)
+        Promise.all(
+          unreadNotifications.map(n => markAsRead(n.id))
+        ).catch((error) => {
+          console.error('Error marking notifications as read:', error)
+          // On error, we could revert the optimistic update, but for UX we'll keep it
+        })
+      }
+    } else {
+      // When closing, remove all read notifications from the list
+      setNotifications((prev) => prev.filter((n) => !n.is_read))
+    }
   }
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -281,7 +342,7 @@ export function NotificationBell() {
             </div>
           ) : notifications.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              No new notifications.
+              No notifications.
             </div>
           ) : (
             <div className="divide-y">

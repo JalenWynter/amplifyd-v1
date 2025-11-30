@@ -72,8 +72,7 @@ export async function getPublicReviews(limit: number = 12): Promise<PublishedRev
       ),
       reviewer:profiles!reviewer_id(
         full_name,
-        avatar_url,
-        reviewer_title
+        avatar_url
       )
     `)
     .not('published_date', 'is', null)
@@ -81,7 +80,7 @@ export async function getPublicReviews(limit: number = 12): Promise<PublishedRev
     .limit(limit * 2) // Get more to filter after
 
   if (error) {
-    console.error('Error fetching public reviews:', error)
+    console.error('Error fetching public reviews:', error.message || error)
     return []
   }
 
@@ -93,15 +92,6 @@ export async function getPublicReviews(limit: number = 12): Promise<PublishedRev
   const completedReviews = reviews.filter((review: any) => 
     review.order && review.order.status === 'completed'
   ).slice(0, limit) // Limit to requested amount
-
-  if (error) {
-    console.error('Error fetching public reviews:', error)
-    return []
-  }
-
-  if (!reviews || reviews.length === 0) {
-    return []
-  }
 
   // Transform and generate signed URLs
   const transformedReviews = await Promise.all(
@@ -182,7 +172,7 @@ export async function getPublicReviews(limit: number = 12): Promise<PublishedRev
       const publishedReview: PublishedReview = {
         id: review.id,
         reviewer: reviewerData?.full_name || 'Unknown Reviewer',
-        reviewerTitle: review.reviewer_title || reviewerData?.reviewer_title || '',
+        reviewerTitle: review.reviewer_title || '',
         artist: artistData?.full_name || 'Unknown Artist',
         trackTitle: orderData?.track_title || 'Untitled Track',
         audioUrl: orderData?.track_url || '', // Original track URL (not the review media)

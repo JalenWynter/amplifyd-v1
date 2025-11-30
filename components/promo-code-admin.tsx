@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, getPromoCodeUsage, type PromoCode } from "@/app/actions/promo-codes"
-import { Plus, Trash2, Edit, Eye, Calendar, Users, Tag as TagIcon } from "lucide-react"
+import { Plus, Trash2, Edit, Eye, Calendar, Users, Tag as TagIcon, ToggleLeft, ToggleRight } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/hooks/use-toast"
 
 export function PromoCodeAdmin() {
@@ -64,7 +65,7 @@ export function PromoCodeAdmin() {
         discount_type: formData.discount_type,
         discount_value: parseFloat(formData.discount_value),
         max_uses: formData.max_uses ? parseInt(formData.max_uses) : null,
-        valid_until: formData.valid_until,
+        expires_at: formData.valid_until,
       })
 
       if (result.success) {
@@ -150,7 +151,7 @@ export function PromoCodeAdmin() {
   }
 
   const isExpired = (code: PromoCode) => {
-    return new Date(code.valid_until) < new Date()
+    return new Date(code.expires_at) < new Date()
   }
 
   const isMaxUsesReached = (code: PromoCode) => {
@@ -234,7 +235,7 @@ export function PromoCodeAdmin() {
                   />
                 </div>
                 <div>
-                  <Label className="text-white">Valid Until</Label>
+                  <Label className="text-white">Expiration Date</Label>
                   <Input
                     type="datetime-local"
                     value={formData.valid_until}
@@ -256,84 +257,108 @@ export function PromoCodeAdmin() {
         ) : promoCodes.length === 0 ? (
           <p className="text-white/50 text-center py-8">No promo codes found</p>
         ) : (
-          <div className="space-y-3">
-            {promoCodes.map((code) => (
-              <div
-                key={code.id}
-                className="flex items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Badge
-                      variant={code.is_active && !isExpired(code) && !isMaxUsesReached(code) ? "default" : "secondary"}
-                      className={
-                        code.is_active && !isExpired(code) && !isMaxUsesReached(code)
-                          ? "bg-[#8B5CF6] text-white"
-                          : "bg-gray-500/20 text-gray-400"
-                      }
-                    >
-                      {code.code}
-                    </Badge>
-                    {isExpired(code) && (
-                      <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/50">
-                        Expired
-                      </Badge>
-                    )}
-                    {isMaxUsesReached(code) && (
-                      <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/50">
-                        Max Uses Reached
-                      </Badge>
-                    )}
-                    {!code.is_active && (
-                      <Badge variant="outline" className="bg-gray-500/20 text-gray-400">
-                        Inactive
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-white/70">
-                    <span>
-                      {code.discount_type === "percentage"
-                        ? `${code.discount_value}% off`
-                        : `$${code.discount_value} off`}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {code.current_uses} / {code.max_uses || "∞"} uses
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {new Date(code.valid_until).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleViewUsage(code)}
-                    className="text-white/70 hover:text-white"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggleActive(code)}
-                    className="text-white/70 hover:text-white"
-                  >
-                    {code.is_active ? "Deactivate" : "Activate"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(code.id)}
-                    className="text-red-400/70 hover:text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+          <div className="rounded-lg border border-white/10 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableHead className="text-white">Code</TableHead>
+                  <TableHead className="text-white">Discount</TableHead>
+                  <TableHead className="text-white">Usage</TableHead>
+                  <TableHead className="text-white">Status</TableHead>
+                  <TableHead className="text-white">Expires</TableHead>
+                  <TableHead className="text-white text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {promoCodes.map((code) => {
+                  const expired = isExpired(code)
+                  const maxReached = isMaxUsesReached(code)
+                  const isActive = code.is_active && !expired && !maxReached
+                  
+                  return (
+                    <TableRow key={code.id} className="border-white/10 hover:bg-white/5">
+                      <TableCell className="font-medium text-white">
+                        <Badge
+                          variant={isActive ? "default" : "secondary"}
+                          className={
+                            isActive
+                              ? "bg-[#8B5CF6] text-white"
+                              : "bg-gray-500/20 text-gray-400"
+                          }
+                        >
+                          {code.code}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-white/80">
+                        {code.discount_type === "percentage"
+                          ? `${code.discount_value}%`
+                          : `$${code.discount_value}`}
+                        <span className="text-white/50 text-xs ml-1">
+                          ({code.discount_type === "percentage" ? "%" : "fixed"})
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-white/80">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-3 w-3 text-white/50" />
+                          <span>{code.current_uses} / {code.max_uses || "∞"}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {expired ? (
+                          <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/50">
+                            Expired
+                          </Badge>
+                        ) : maxReached ? (
+                          <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/50">
+                            Max Uses
+                          </Badge>
+                        ) : code.is_active ? (
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-500/20 text-gray-400">
+                            Inactive
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-white/80">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-white/50" />
+                          <span>{new Date(code.expires_at).toLocaleDateString()}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleActive(code)}
+                            className="text-white/70 hover:text-white"
+                            title={code.is_active ? "Deactivate" : "Activate"}
+                          >
+                            {code.is_active ? (
+                              <ToggleRight className="h-4 w-4 text-green-400" />
+                            ) : (
+                              <ToggleLeft className="h-4 w-4 text-gray-400" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(code.id)}
+                            className="text-red-400/70 hover:text-red-400"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
           </div>
         )}
 
