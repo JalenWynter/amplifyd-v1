@@ -9,7 +9,10 @@
     "start": "next start",
     "seed": "tsx scripts/seed-reviewers.ts",
     "stripe:listen": "echo 'To test webhooks locally, use one of these options:' && echo '1. Install Stripe CLI: brew install stripe/stripe-cli/stripe' && echo '2. Use Stripe Dashboard: https://dashboard.stripe.com/test/webhooks' && echo '3. Use ngrok or similar tunnel service' && echo '' && echo 'Then run: stripe listen --forward-to localhost:3000/api/webhooks/stripe'",
-    "stripe:test": "node -e \"console.log('Stripe webhook testing requires the Stripe CLI. See README_STRIPE.md for alternatives.')\""
+    "stripe:test": "node -e \"console.log('Stripe webhook testing requires the Stripe CLI. See README_STRIPE.md for alternatives.')\"",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -70,11 +73,12 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tsx": "^4.19.2",

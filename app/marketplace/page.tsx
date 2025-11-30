@@ -35,6 +35,7 @@ import {
   Headphones,
   FileText,
 } from "lucide-react"
+import { ImageModal } from "@/components/image-modal"
 import { NavbarAuth } from "@/components/navbar-auth"
 import { createClient } from "@/utils/supabase/client"
 import { Toggle } from "@/components/ui/toggle"
@@ -221,6 +222,8 @@ export default function MarketplacePage() {
   const [reviewers, setReviewers] = useState<Reviewer[]>([])
   const [loadingReviewers, setLoadingReviewers] = useState(true)
   const [tagOptions, setTagOptions] = useState<string[]>([])
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string } | null>(null)
 
   const {
     filteredReviewers,
@@ -385,7 +388,25 @@ export default function MarketplacePage() {
         </section>
       </div>
 
-      <ReviewerDialog reviewer={selectedReviewer} open={open} onOpenChange={setOpen} />
+      <ReviewerDialog 
+        reviewer={selectedReviewer} 
+        open={open} 
+        onOpenChange={setOpen}
+        onImageClick={(src, alt) => {
+          setSelectedImage({ src, alt })
+          setImageModalOpen(true)
+        }}
+      />
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <ImageModal
+          open={imageModalOpen}
+          onOpenChange={setImageModalOpen}
+          src={selectedImage.src}
+          alt={selectedImage.alt}
+        />
+      )}
     </main>
   )
 }
@@ -599,7 +620,14 @@ function ReviewerCard({
       className="cursor-pointer border border-white/10 bg-white/5 backdrop-blur-xl transition duration-300 hover:border-[#8B5CF6] hover:shadow-[0_0_30px_rgba(139,92,246,0.35)]"
     >
       <CardHeader className="flex flex-row items-center gap-4">
-        <div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/20">
+        <div 
+          className="relative h-14 w-14 overflow-hidden rounded-full border border-white/20 cursor-pointer hover:border-[#8B5CF6] transition-colors"
+          onClick={(e) => {
+            e.stopPropagation()
+            setSelectedImage({ src: reviewer.avatar, alt: reviewer.name })
+            setImageModalOpen(true)
+          }}
+        >
           <Image src={reviewer.avatar} alt={reviewer.name} fill sizes="56px" className="object-cover" />
         </div>
         <div>
@@ -769,10 +797,12 @@ function ReviewerDialog({
   reviewer,
   open,
   onOpenChange,
+  onImageClick,
 }: {
   reviewer: Reviewer | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onImageClick: (src: string, alt: string) => void
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -782,7 +812,12 @@ function ReviewerDialog({
             {/* Header Section */}
             <div className="relative shrink-0 border-b border-white/10 bg-gradient-to-b from-[#1a1a1a] to-[#080808] p-6 md:p-8">
               <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
-                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-[#8B5CF6] shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+                <div 
+                  className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-[#8B5CF6] shadow-[0_0_20px_rgba(139,92,246,0.3)] cursor-pointer hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-shadow"
+                  onClick={() => {
+                    onImageClick(reviewer.avatar, reviewer.name)
+                  }}
+                >
                   <Image src={reviewer.avatar} alt={reviewer.name} fill sizes="96px" className="object-cover" />
                 </div>
                 

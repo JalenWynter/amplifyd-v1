@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { CheckCircle2, Star, Clock, RefreshCw, Check, Loader2, ArrowLeft, BarChart3, Video, Headphones, FileText } from "lucide-react"
 import { getReviewers } from "@/app/actions/reviewers"
 import { cn } from "@/lib/utils"
+import { ImageModal } from "@/components/image-modal"
 
 type ReviewerPackage = {
   id: string
@@ -61,6 +62,8 @@ export function ReviewerSelectionDialog({
   const [selectedReviewer, setSelectedReviewer] = useState<Reviewer | null>(null)
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
   const loadMoreRef = useRef<HTMLDivElement>(null)
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string } | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -126,25 +129,45 @@ export function ReviewerSelectionDialog({
   const hasMore = visibleCount < reviewers.length
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[95vw] md:max-w-6xl lg:max-w-7xl h-[100dvh] md:h-[90vh] max-h-[100dvh] md:max-h-[90vh] overflow-hidden border border-white/10 bg-[#080808]/90 backdrop-blur-md text-white p-0 flex flex-col m-0 md:m-4">
-        {selectedReviewer ? (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-full max-w-[95vw] md:max-w-6xl lg:max-w-7xl h-[100dvh] md:h-[90vh] max-h-[100dvh] md:max-h-[90vh] overflow-hidden border border-white/10 bg-[#080808]/90 backdrop-blur-md text-white p-0 flex flex-col m-0 md:m-4">
+          {selectedReviewer ? (
           <DetailView
             reviewer={selectedReviewer}
             onBack={() => setSelectedReviewer(null)}
             onBookNow={handleBookNow}
+            onImageClick={(src, alt) => {
+              setSelectedImage({ src, alt })
+              setImageModalOpen(true)
+            }}
           />
-        ) : (
+          ) : (
           <ListView
             reviewers={visibleReviewers}
             loadingReviewers={loadingReviewers}
             hasMore={hasMore}
             onSelectReviewer={setSelectedReviewer}
             loadMoreRef={loadMoreRef}
+            onImageClick={(src, alt) => {
+              setSelectedImage({ src, alt })
+              setImageModalOpen(true)
+            }}
           />
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <ImageModal
+          open={imageModalOpen}
+          onOpenChange={setImageModalOpen}
+          src={selectedImage.src}
+          alt={selectedImage.alt}
+        />
+      )}
+    </>
   )
 }
 
@@ -154,12 +177,14 @@ function ListView({
   hasMore,
   onSelectReviewer,
   loadMoreRef,
+  onImageClick,
 }: {
   reviewers: Reviewer[]
   loadingReviewers: boolean
   hasMore: boolean
   onSelectReviewer: (reviewer: Reviewer) => void
   loadMoreRef: React.RefObject<HTMLDivElement>
+  onImageClick: (src: string, alt: string) => void
 }) {
   return (
     <>
@@ -186,6 +211,7 @@ function ListView({
                 key={reviewer.id}
                 reviewer={reviewer}
                 onClick={() => onSelectReviewer(reviewer)}
+                onImageClick={onImageClick}
               />
             ))}
           </div>
@@ -207,9 +233,11 @@ function ListView({
 function CompactReviewerCard({
   reviewer,
   onClick,
+  onImageClick,
 }: {
   reviewer: Reviewer
   onClick: () => void
+  onImageClick: (src: string, alt: string) => void
 }) {
   return (
     <div
@@ -217,7 +245,13 @@ function CompactReviewerCard({
       className="cursor-pointer rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl transition duration-300 hover:border-[#8B5CF6] hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] p-4 space-y-3 h-full flex flex-col min-h-[140px]"
     >
       <div className="flex items-center gap-3 flex-1">
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/20">
+        <div 
+          className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/20 cursor-pointer hover:border-[#8B5CF6] transition-colors"
+          onClick={(e) => {
+            e.stopPropagation()
+            onImageClick(reviewer.avatar, reviewer.name)
+          }}
+        >
           <Image src={reviewer.avatar} alt={reviewer.name} fill sizes="48px" className="object-cover" />
         </div>
         <div className="flex-1 min-w-0">
@@ -265,10 +299,12 @@ function DetailView({
   reviewer,
   onBack,
   onBookNow,
+  onImageClick,
 }: {
   reviewer: Reviewer
   onBack: () => void
   onBookNow: (reviewerId: string, packageId: string) => void
+  onImageClick: (src: string, alt: string) => void
 }) {
   return (
     <div className="flex flex-col h-full">
@@ -285,7 +321,12 @@ function DetailView({
             Back
           </Button>
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/20">
+            <div 
+              className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/20 cursor-pointer hover:border-[#8B5CF6] transition-colors"
+              onClick={() => {
+                onImageClick(reviewer.avatar, reviewer.name)
+              }}
+            >
               <Image src={reviewer.avatar} alt={reviewer.name} fill sizes="40px" className="object-cover" />
             </div>
             <div className="min-w-0">

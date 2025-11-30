@@ -6,41 +6,35 @@ import { revalidatePath } from 'next/cache'
 // Helper function to extract file path from Supabase storage URL or storage path
 function extractFilePathFromUrl(url: string, bucketName: string): string | null {
   if (!url) return null
-  
-  // If it's already a storage path (format: bucketName/path), extract the path part
-  if (url.startsWith(`${bucketName}/`) && !url.startsWith('http')) {
-    return url.substring(bucketName.length + 1) // Remove "bucketName/" prefix
+
+  // Case 1: It's already a clean path (e.g. "folder/file.mp3")
+  // We assume if it doesn't start with http/https, it might be a path.
+  // But we need to ensure we don't double-strip the bucket name if it's not there.
+  if (!url.startsWith('http')) {
+    if (url.startsWith(`${bucketName}/`)) {
+      return url.substring(bucketName.length + 1)
+    }
+    return url // Assume it's the path itself
   }
-  
-  // Handle different URL formats:
-  // 1. https://[project].supabase.co/storage/v1/object/public/reviews/path/to/file.mp4
-  // 2. https://[project].supabase.co/storage/v1/object/sign/reviews/path/to/file.mp4?token=...
-  // 3. Full URL with bucket in path
-  
+
   try {
     const urlObj = new URL(url)
     const pathParts = urlObj.pathname.split('/')
     
-    // Find the bucket name in the path
+    // Find where the bucket name appears in the path
     const bucketIndex = pathParts.findIndex(part => part === bucketName)
+
     if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
-      // Get everything after the bucket name
-      return pathParts.slice(bucketIndex + 1).join('/')
+      // Return everything after the bucket name
+      return decodeURIComponent(pathParts.slice(bucketIndex + 1).join('/'))
     }
-    
-    // Fallback: try to extract from common patterns
-    const match = url.match(new RegExp(`/${bucketName}/(.+)`))
-    if (match && match[1]) {
-      // Remove query parameters if present
-      return match[1].split('?')[0]
-    }
-    
-    return null
-  } catch (error) {
-    // If URL parsing fails, try regex extraction
-    const match = url.match(new RegExp(`/${bucketName}/([^?]+)`))
-    return match ? match[1] : null
+  } catch (e) {
+    console.warn('URL parsing failed, falling back to regex', e)
   }
+
+  // Fallback: Regex for standard Supabase URLs
+  const match = url.match(new RegExp(`/${bucketName}/([^?#]+)`))
+  return match ? decodeURIComponent(match[1]) : null
 }
 
 export async function createOrder(data: {
@@ -234,6 +228,27 @@ export async function getReviewerOrdersWithReviews() {
   // Sign media URLs for secure access
   const ordersWithSignedUrls = await Promise.all(
     orders.map(async (order: any) => {
+      const signedOrder = { ...order }
+
+      // Sign track_url if exists (from submissions bucket)
+      if (order.track_url) {
+        try {
+          const filePath = extractFilePathFromUrl(order.track_url, 'submissions')
+          if (filePath) {
+            const { data: signedUrl } = await supabase.storage
+              .from('submissions')
+              .createSignedUrl(filePath, 3600) // 1 hour expiry
+            if (signedUrl) {
+              signedOrder.track_url = signedUrl.signedUrl
+            }
+          }
+        } catch (error) {
+          console.error('Error signing track URL:', error)
+          // Keep original URL if signing fails
+        }
+      }
+
+      // Process review media URLs
       if (order.reviews && Array.isArray(order.reviews)) {
         const signedReviews = await Promise.all(
           order.reviews.map(async (review: any) => {
@@ -278,9 +293,10 @@ export async function getReviewerOrdersWithReviews() {
             return signedReview
           })
         )
-        return { ...order, reviews: signedReviews }
+        signedOrder.reviews = signedReviews
       }
-      return order
+
+      return signedOrder
     })
   )
 

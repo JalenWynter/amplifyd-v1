@@ -345,9 +345,25 @@ export default function ReviewerReviewsPage() {
                                     controls
                                     className="w-full"
                                     src={order.track_url}
+                                    onError={(e) => {
+                                      const audioElement = e.currentTarget
+                                      console.error("Audio Error:", {
+                                        error: audioElement.error,
+                                        errorCode: audioElement.error?.code,
+                                        errorMessage: audioElement.error?.message,
+                                        src: audioElement.src,
+                                        networkState: audioElement.networkState,
+                                        readyState: audioElement.readyState
+                                      })
+                                    }}
                                   >
                                     Your browser does not support the audio element.
                                   </audio>
+                                </div>
+                                {/* Debug Box */}
+                                <div className="mt-2 p-2 bg-red-900/20 text-red-200 text-xs font-mono break-all rounded border border-red-500/30">
+                                  <p><strong>Debug URL:</strong> {order.track_url}</p>
+                                  <p><strong>Bucket Path:</strong> {order.track_url?.split('/submissions/')[1] || 'Could not parse'}</p>
                                 </div>
                               </div>
                             )}

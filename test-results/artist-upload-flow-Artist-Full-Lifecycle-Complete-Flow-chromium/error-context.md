@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - link "Amplifyd Studio" [ref=e4] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: Sign Up
+        - generic [ref=e8]: Create an account to get started
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - generic [ref=e12]: Email
+            - textbox "Email" [ref=e13]:
+              - /placeholder: you@example.com
+          - generic [ref=e14]:
+            - generic [ref=e15]: Password
+            - generic [ref=e16]:
+              - textbox "Password" [ref=e17]:
+                - /placeholder: ••••••••
+              - button [ref=e18]:
+                - img [ref=e19]
+          - generic [ref=e22]:
+            - generic [ref=e23]: Confirm Password
+            - generic [ref=e24]:
+              - textbox "Confirm Password" [ref=e25]:
+                - /placeholder: ••••••••
+              - button [ref=e26]:
+                - img [ref=e27]
+          - button "Sign Up" [active] [ref=e30]
+        - generic [ref=e35]: Or continue with
+        - button "Sign Up with Google" [ref=e36]:
+          - img
+          - text: Sign Up with Google
+      - generic [ref=e37]:
+        - paragraph [ref=e38]:
+          - text: Already have an account?
+          - link "Login" [ref=e39] [cursor=pointer]:
+            - /url: /login
+        - link "← Back to Home" [ref=e40] [cursor=pointer]:
+          - /url: /
+  - region "Notifications (F8)":
+    - list [ref=e42]:
+      - status [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]: Error
+          - generic [ref=e46]: Email address "e2e_1764543878922_846@test.com" is invalid
+        - button [ref=e47]:
+          - img [ref=e48]
+  - button "Open Next.js Dev Tools" [ref=e57] [cursor=pointer]:
+    - img [ref=e58]
+  - alert [ref=e61]
+```

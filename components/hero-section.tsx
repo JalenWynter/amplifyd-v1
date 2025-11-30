@@ -90,16 +90,39 @@ export function HeroSection() {
     const supabase = createClient()
 
     try {
+      // Get current user (if authenticated) for consistent path structure
+      const { data: { user } } = await supabase.auth.getUser()
+      
       const fileName = file.name
       const sanitizedFileName = sanitizeFileName(fileName)
-      const filePath = `public/${Date.now()}-${sanitizedFileName}`
+      
+      // Use standardized path: userId/timestamp-filename (or public/timestamp-filename for guests)
+      const userId = user?.id || 'public'
+      const filePath = `${userId}/${Date.now()}-${sanitizedFileName}`
 
-      // Upload file to submissions bucket
+      // Normalize MIME type for Supabase Storage compatibility
+      let contentType = file.type
+      if (file.type === "audio/x-m4a" || file.type === "audio/m4a" || file.name.endsWith(".m4a")) {
+        contentType = "audio/mp4"
+      } else if (file.type === "audio/mp3" || file.name.endsWith(".mp3")) {
+        contentType = "audio/mpeg"
+      } else if (!file.type || file.type === "") {
+        if (file.name.endsWith(".mp3")) {
+          contentType = "audio/mpeg"
+        } else if (file.name.endsWith(".wav")) {
+          contentType = "audio/wav"
+        } else if (file.name.endsWith(".m4a")) {
+          contentType = "audio/mp4"
+        }
+      }
+
+      // Upload file to submissions bucket with normalized content type
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("submissions")
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
+          contentType: contentType,
         })
 
       if (uploadError) {
@@ -107,7 +130,7 @@ export function HeroSection() {
         throw uploadError
       }
 
-      // Get public URL
+      // Get public URL (submissions bucket is public, so this URL will work across the site)
       const { data: urlData } = supabase.storage
         .from("submissions")
         .getPublicUrl(filePath)
@@ -118,6 +141,7 @@ export function HeroSection() {
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
       // Set track info and open selection dialog
+      // This URL will be saved to database when order is created via createOrder()
       setUploadedTrackUrl(publicUrl)
       setUploadedTrackTitle(fileName)
       setIsSelectionOpen(true)
