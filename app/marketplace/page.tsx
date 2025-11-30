@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import { getReviewers } from "@/app/actions/reviewers"
 import { useRouter } from "next/navigation"
@@ -87,15 +88,16 @@ function useReviewerFilters(reviewers: Reviewer[]) {
   // Calculate price range from reviewers
   const calculatedPriceRange = useMemo(() => {
     if (reviewers.length === 0) {
-      return { min: 0, max: 1000 }
+      return { min: 0, max: 100 }
     }
     const prices = reviewers.map((r) => r.startingPrice).filter((p) => p > 0)
     if (prices.length === 0) {
-      return { min: 0, max: 1000 }
+      return { min: 0, max: 100 }
     }
+    const calculatedMax = Math.max(...prices)
     return {
       min: Math.min(...prices),
-      max: Math.max(...prices),
+      max: Math.max(calculatedMax, 100), // Ensure max is at least $100
     }
   }, [reviewers])
 
@@ -118,6 +120,12 @@ function useReviewerFilters(reviewers: Reviewer[]) {
       ...prev,
       [key]: Number.isNaN(value) ? prev[key] : value,
     }))
+  }
+
+  const updatePriceRange = (values: number[]) => {
+    if (values.length === 2) {
+      setPriceRange({ min: values[0], max: values[1] })
+    }
   }
 
   const filteredReviewers = useMemo(() => {
@@ -150,6 +158,7 @@ function useReviewerFilters(reviewers: Reviewer[]) {
     toggleTag,
     priceRange,
     updatePrice,
+    updatePriceRange,
     sortOption,
     setSortOption,
   }
@@ -212,6 +221,7 @@ export default function MarketplacePage() {
     toggleTag,
     priceRange: filterPriceRange,
     updatePrice,
+    updatePriceRange,
     sortOption,
     setSortOption,
   } = useReviewerFilters(reviewers)
@@ -312,6 +322,7 @@ export default function MarketplacePage() {
             onToggleTag={toggleTag}
             priceRange={filterPriceRange}
             updatePrice={updatePrice}
+            updatePriceRange={updatePriceRange}
             sortOption={sortOption}
             onSortChange={setSortOption}
             globalPriceRange={priceRange}
@@ -391,6 +402,7 @@ function FilterPanel({
   onToggleTag,
   priceRange,
   updatePrice,
+  updatePriceRange,
   sortOption,
   onSortChange,
   globalPriceRange,
@@ -400,18 +412,16 @@ function FilterPanel({
   onToggleTag: (tag: string) => void
   priceRange: { min: number; max: number }
   updatePrice: (key: "min" | "max", value: number) => void
+  updatePriceRange: (values: number[]) => void
   sortOption: SortOption
   onSortChange: (value: SortOption) => void
   globalPriceRange: { min: number; max: number }
 }) {
-  const [minInput, setMinInput] = useState<string>(String(priceRange.min))
-  const [maxInput, setMaxInput] = useState<string>(String(priceRange.max))
   const [tagSearch, setTagSearch] = useState<string>("")
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const isMinEmpty = minInput === ""
-  const isMaxEmpty = maxInput === ""
+  const sliderValue = [priceRange.min, priceRange.max]
 
   const filteredTags = useMemo(() => {
     if (!tagSearch.trim()) return tags
@@ -435,25 +445,6 @@ function FilterPanel({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const handleMinChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value
-    setMinInput(value)
-    if (value === "") return
-    const numeric = Number(value)
-    if (!Number.isNaN(numeric)) {
-      updatePrice("min", numeric)
-    }
-  }
-
-  const handleMaxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value
-    setMaxInput(value)
-    if (value === "") return
-    const numeric = Number(value)
-    if (!Number.isNaN(numeric)) {
-      updatePrice("max", numeric)
-    }
-  }
 
   return (
     <aside className="space-y-6 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl self-start">
@@ -551,48 +542,56 @@ function FilterPanel({
         )}
       </div>
 
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-white/80">Price Range</p>
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            min={globalPriceRange.min}
-            max={priceRange.max}
-            value={minInput}
-            onChange={handleMinChange}
-            className={`border-white/20 bg-transparent text-white ${isMinEmpty ? "border-red-500" : ""}`}
-          />
-          <Input
-            type="number"
-            min={priceRange.min}
-            max={globalPriceRange.max}
-            value={maxInput}
-            onChange={handleMaxChange}
-            className={`border-white/20 bg-transparent text-white ${isMaxEmpty ? "border-red-500" : ""}`}
-          />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-white/80">Price Range</p>
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/20 border border-[#8B5CF6]/30">
+            <span className="text-xs font-bold text-[#C4B5FD]">
+              ${priceRange.min} - ${priceRange.max}
+            </span>
+          </div>
         </div>
-        {(isMinEmpty || isMaxEmpty) && (
-          <p className="text-xs text-red-400">Both price fields are required.</p>
-        )}
-        <p className="text-xs text-white/50">
-          Global range ${globalPriceRange.min} – ${globalPriceRange.max}
-        </p>
+        
+        <div className="space-y-3">
+          <div className="relative">
+            <Slider
+              value={sliderValue}
+              onValueChange={updatePriceRange}
+              min={globalPriceRange.min}
+              max={globalPriceRange.max}
+              step={5}
+              className="w-full [&_[data-slot=slider-track]]:bg-white/10 [&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-range]]:bg-gradient-to-r [&_[data-slot=slider-range]]:from-[#8B5CF6] [&_[data-slot=slider-range]]:to-[#C4B5FD] [&_[data-slot=slider-thumb]]:border-[#8B5CF6] [&_[data-slot=slider-thumb]]:bg-[#8B5CF6] [&_[data-slot=slider-thumb]]:size-5 [&_[data-slot=slider-thumb]]:shadow-lg [&_[data-slot=slider-thumb]]:shadow-[#8B5CF6]/50 [&_[data-slot=slider-thumb]]:hover:scale-110 [&_[data-slot=slider-thumb]]:transition-transform"
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-white/50">${globalPriceRange.min}</span>
+            <span className="text-[#8B5CF6] font-semibold">💰 Adjust Range</span>
+            <span className="text-white/50">${globalPriceRange.max}</span>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-sm font-semibold text-white/80">Sort</p>
-        <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
-          <SelectTrigger className="border-white/20 bg-white/10 text-white">
-            <SelectValue placeholder="Sort By" />
-          </SelectTrigger>
-          <SelectContent className="bg-[#121212] text-white">
-            {SORT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-white/80 text-center">Sort By</p>
+        <div className="grid grid-cols-2 gap-2">
+          {SORT_OPTIONS.map((option) => {
+            const isActive = sortOption === option.value
+            return (
+              <button
+                key={option.value}
+                onClick={() => onSortChange(option.value as SortOption)}
+                className={cn(
+                  "px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200",
+                  isActive
+                    ? "bg-[#8B5CF6] text-white shadow-lg shadow-[#8B5CF6]/30 border border-[#8B5CF6]/50"
+                    : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white border border-white/10"
+                )}
+              >
                 {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </aside>
   )

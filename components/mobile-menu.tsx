@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,11 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescri
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const menuItems = [
     { href: "/marketplace", label: "Marketplace" },
@@ -15,6 +20,15 @@ export function MobileMenu() {
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
   ]
+
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon" className="md:hidden" disabled>
+        <Menu className="h-5 w-5" />
+        <span className="sr-only">Toggle menu</span>
+      </Button>
+    )
+  }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
