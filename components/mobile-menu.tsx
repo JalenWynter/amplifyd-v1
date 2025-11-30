@@ -18,7 +18,7 @@ export function MobileMenu() {
     { href: "/marketplace", label: "Marketplace" },
     { href: "/reviews", label: "Reviews" },
     { href: "/about", label: "About" },
-    { href: "/contact", label: "Contact" },
+    { href: "/support", label: "Contact" },
   ]
 
   if (!mounted) {

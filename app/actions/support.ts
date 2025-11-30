@@ -19,6 +19,29 @@ export async function createTicket(formData: FormData) {
     return { error: "You must be logged in to create a ticket" }
   }
 
+  // Fetch user profile to check trust score
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, verified')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) {
+    return { error: "Profile not found" }
+  }
+
+  // Trust Score Gate: Check email verification for all users
+  const isEmailVerified = !!user.email_confirmed_at || user.email_verified || false
+  
+  if (!isEmailVerified) {
+    return { error: "Please verify your email address to contact support." }
+  }
+
+  // Additional check for reviewers - must be verified in profile
+  if (profile.role === 'reviewer' && !profile.verified) {
+    return { error: "Your account is pending verification." }
+  }
+
   const rawData = {
     subject: formData.get("subject"),
     category: formData.get("category"),

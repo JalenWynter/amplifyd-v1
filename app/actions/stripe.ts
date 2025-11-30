@@ -3,12 +3,15 @@
 import { stripe } from "@/lib/stripe"
 import { createClient } from "@/utils/supabase/server"
 import { createOrder } from "./orders"
+import { validatePromoCode, applyPromoCode } from "./promo-codes"
 
 export async function startCheckoutSession(
   reviewerId: string,
   packageId: string,
   trackUrl: string,
-  trackTitle: string
+  trackTitle: string,
+  note?: string,
+  promoCode?: string
 ) {
   const supabase = await createClient()
 
@@ -35,18 +38,41 @@ export async function startCheckoutSession(
     throw new Error(`Package with id "${packageId}" not found for this reviewer`)
   }
 
+  // Calculate final price with promo code discount
+  let finalPrice = selectedPackage.price
+  let discountAmount = 0
+
+  if (promoCode) {
+    const validation = await validatePromoCode(promoCode)
+    if (validation.valid && validation.discount) {
+      if (validation.discount.type === 'percentage') {
+        discountAmount = (selectedPackage.price * validation.discount.value) / 100
+      } else {
+        discountAmount = validation.discount.value
+      }
+      discountAmount = Math.min(discountAmount, selectedPackage.price)
+      finalPrice = selectedPackage.price - discountAmount
+    }
+  }
+
   // Create order in database before Stripe session using createOrder action
   const order = await createOrder({
     reviewerId,
     packageId,
     trackUrl,
     trackTitle,
-    priceTotal: selectedPackage.price,
+    priceTotal: finalPrice,
+    note,
   })
 
   const orderData = order as { id: string; [key: string]: any }
 
-  // Create Stripe Checkout Session with real price from package
+  // Apply promo code to order if valid
+  if (promoCode && discountAmount > 0) {
+    await applyPromoCode(promoCode, orderData.id, selectedPackage.price)
+  }
+
+  // Create Stripe Checkout Session with discounted price
   const session = await stripe.checkout.sessions.create({
     ui_mode: "embedded",
     redirect_on_completion: "never",
@@ -58,21 +84,39 @@ export async function startCheckoutSession(
             name: selectedPackage.title || selectedPackage.name,
             description: selectedPackage.description || '',
           },
-          unit_amount: Math.round(selectedPackage.price * 100), // Convert to cents
+          unit_amount: Math.round(finalPrice * 100), // Convert to cents
         },
         quantity: 1,
       },
     ],
     mode: "payment",
+    payment_method_types: ["card", "link"],
+    payment_method_options: {
+      card: {
+        request_three_d_secure: "automatic",
+      },
+    },
     metadata: {
       order_id: orderData.id,
       reviewer_id: reviewerId,
       package_id: packageId,
+      promo_code: promoCode || '',
     },
   })
 
+  // Update order with Stripe session ID for payment verification redundancy
+  const { error: updateError } = await supabase
+    .from('orders')
+    .update({ stripe_session_id: session.id })
+    .eq('id', orderData.id)
+
+  if (updateError) {
+    console.error('Error updating order with Stripe session ID:', updateError)
+    // Don't throw - session ID storage is for redundancy, not critical for checkout
+  }
+
   return {
-    clientSecret: session.client_secret,
+    clientSecret: session.client_secret || null,
     orderId: orderData.id,
   }
 }

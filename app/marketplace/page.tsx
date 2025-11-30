@@ -88,16 +88,18 @@ function useReviewerFilters(reviewers: Reviewer[]) {
   // Calculate price range from reviewers
   const calculatedPriceRange = useMemo(() => {
     if (reviewers.length === 0) {
-      return { min: 0, max: 100 }
+      return { min: 0, max: 1000 } // Default fallback when no reviewers
     }
     const prices = reviewers.map((r) => r.startingPrice).filter((p) => p > 0)
     if (prices.length === 0) {
-      return { min: 0, max: 100 }
+      return { min: 0, max: 1000 } // Default fallback when no prices
     }
+    // Use min of 0 and max of calculated max or 1000, whichever is higher
+    const calculatedMin = Math.min(...prices)
     const calculatedMax = Math.max(...prices)
     return {
-      min: Math.min(...prices),
-      max: Math.max(calculatedMax, 100), // Ensure max is at least $100
+      min: 0, // Always start from 0
+      max: Math.max(calculatedMax, 1000), // Use calculated max or 1000, whichever is higher
     }
   }, [reviewers])
 
@@ -161,6 +163,7 @@ function useReviewerFilters(reviewers: Reviewer[]) {
     updatePriceRange,
     sortOption,
     setSortOption,
+    globalPriceRange: calculatedPriceRange,
   }
 }
 
@@ -213,7 +216,6 @@ export default function MarketplacePage() {
   const [reviewers, setReviewers] = useState<Reviewer[]>([])
   const [loadingReviewers, setLoadingReviewers] = useState(true)
   const [tagOptions, setTagOptions] = useState<string[]>([])
-  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000 })
 
   const {
     filteredReviewers,
@@ -224,6 +226,7 @@ export default function MarketplacePage() {
     updatePriceRange,
     sortOption,
     setSortOption,
+    globalPriceRange,
   } = useReviewerFilters(reviewers)
   const { visibleReviewers, loadMoreRef, isLoading, hasMore } = useInfiniteReviewers(filteredReviewers)
 
@@ -237,17 +240,6 @@ export default function MarketplacePage() {
         // Calculate tag options from fetched data
         const allTags = Array.from(new Set(data.flatMap((reviewer) => reviewer.tags))).sort()
         setTagOptions(allTags)
-        
-        // Calculate price range from fetched data
-        if (data.length > 0) {
-          const prices = data.map((r) => r.startingPrice).filter((p) => p > 0)
-          if (prices.length > 0) {
-            setPriceRange({
-              min: Math.min(...prices),
-              max: Math.max(...prices),
-            })
-          }
-        }
       } catch (error) {
         console.error('Error fetching reviewers:', error)
       } finally {
@@ -287,16 +279,16 @@ export default function MarketplacePage() {
   return (
     <main className="min-h-screen bg-[#0A0A0A] py-12 px-6">
       <div className="mx-auto max-w-6xl space-y-12">
-        <header className="flex flex-col gap-6 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
+        <header className="flex flex-col gap-6 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="text-2xl font-bold text-white transition hover:text-[#C4B5FD]">
               Amplifyd Studio
             </Link>
-            <div className="flex items-center gap-3 lg:hidden">
+            <div className="flex items-center gap-3">
               <NavbarAuth isAuthenticated={isAuthenticated} />
             </div>
           </div>
-          <nav className="flex flex-wrap items-center gap-3 text-sm font-semibold text-white/70">
+          <nav className="flex flex-wrap items-center justify-center gap-3 text-sm font-semibold text-white/70">
             <Link href="/marketplace" className="rounded-full bg-white/10 px-4 py-2 text-white">
               Marketplace
             </Link>
@@ -310,9 +302,6 @@ export default function MarketplacePage() {
               Contact
             </Link>
           </nav>
-          <div className="hidden items-center gap-3 lg:flex">
-            <NavbarAuth isAuthenticated={isAuthenticated} />
-          </div>
         </header>
 
         <section className="grid gap-8 lg:grid-cols-[320px_1fr]">
@@ -325,7 +314,7 @@ export default function MarketplacePage() {
             updatePriceRange={updatePriceRange}
             sortOption={sortOption}
             onSortChange={setSortOption}
-            globalPriceRange={priceRange}
+            globalPriceRange={globalPriceRange}
           />
 
           <div className="space-y-6">
@@ -562,11 +551,6 @@ function FilterPanel({
               step={5}
               className="w-full [&_[data-slot=slider-track]]:bg-white/10 [&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-range]]:bg-gradient-to-r [&_[data-slot=slider-range]]:from-[#8B5CF6] [&_[data-slot=slider-range]]:to-[#C4B5FD] [&_[data-slot=slider-thumb]]:border-[#8B5CF6] [&_[data-slot=slider-thumb]]:bg-[#8B5CF6] [&_[data-slot=slider-thumb]]:size-5 [&_[data-slot=slider-thumb]]:shadow-lg [&_[data-slot=slider-thumb]]:shadow-[#8B5CF6]/50 [&_[data-slot=slider-thumb]]:hover:scale-110 [&_[data-slot=slider-thumb]]:transition-transform"
             />
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-white/50">${globalPriceRange.min}</span>
-            <span className="text-[#8B5CF6] font-semibold">💰 Adjust Range</span>
-            <span className="text-white/50">${globalPriceRange.max}</span>
           </div>
         </div>
       </div>

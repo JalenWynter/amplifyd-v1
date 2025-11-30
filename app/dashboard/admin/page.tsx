@@ -15,6 +15,7 @@ import {
   ArrowLeft
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { PromoCodeAdmin } from '@/components/promo-code-admin'
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
@@ -165,8 +166,11 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Promo Code Management */}
+        <PromoCodeAdmin />
+
         {/* Recent Tickets */}
-        <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+        <Card className="border-white/10 bg-white/5 backdrop-blur-xl mt-8">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <Mail className="h-5 w-5" />

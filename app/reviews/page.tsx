@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { ReviewCard } from "@/components/review-card"
 import { PublishedReview } from "@/types/reviews"
+import { createClient } from "@/utils/supabase/server"
 
 const PUBLISHED_REVIEWS: PublishedReview[] = [
   {
@@ -114,7 +115,31 @@ const PUBLISHED_REVIEWS: PublishedReview[] = [
   },
 ]
 
-export default function ReviewsPage() {
+export default async function ReviewsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Get user role to determine dashboard
+  let dashboardLink = null
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    const role = (profile as any)?.role
+    if (role === 'reviewer') {
+      dashboardLink = '/dashboard/reviewer'
+    } else if (role === 'artist') {
+      dashboardLink = '/dashboard/artist'
+    } else if (role === 'admin') {
+      dashboardLink = '/dashboard/admin'
+    } else {
+      dashboardLink = '/dashboard/artist' // Default fallback
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#080808] py-12 px-6">
       <div className="mx-auto max-w-6xl space-y-12">
@@ -130,9 +155,11 @@ export default function ReviewsPage() {
               <Link href="/reviews" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
                 Reviews
               </Link>
-              <Link href="/pricing" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
-                Pricing
-              </Link>
+              {dashboardLink && (
+                <Link href={dashboardLink} className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
+                  Dashboard
+                </Link>
+              )}
               <Link href="/about" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
                 About
               </Link>
@@ -145,6 +172,11 @@ export default function ReviewsPage() {
             <Link href="/reviews" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
               Reviews
             </Link>
+            {dashboardLink && (
+              <Link href={dashboardLink} className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
+                Dashboard
+              </Link>
+            )}
             <Link href="/about" className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
               About
             </Link>
@@ -152,14 +184,16 @@ export default function ReviewsPage() {
               Contact
             </Link>
           </nav>
-          <div className="hidden lg:flex items-center gap-3 text-white/80 text-sm">
-            <Link href="/login" className="px-3 py-2 rounded-full hover:bg-white/10">
-              Sign In
-            </Link>
-            <Link href="/signup" className="px-4 py-2 rounded-full bg-white text-black font-semibold">
-              Sign Up
-            </Link>
-          </div>
+          {!user && (
+            <div className="hidden lg:flex items-center gap-3 text-white/80 text-sm">
+              <Link href="/login" className="px-3 py-2 rounded-full hover:bg-white/10">
+                Sign In
+              </Link>
+              <Link href="/signup" className="px-4 py-2 rounded-full bg-white text-black font-semibold">
+                Sign Up
+              </Link>
+            </div>
+          )}
         </header>
 
         <div className="text-center space-y-4">

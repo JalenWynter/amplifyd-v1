@@ -11,8 +11,12 @@ import {
   Music,
   User,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  CreditCard,
+  Settings
 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { RealtimeOrdersListener } from '@/components/realtime-orders-listener'
 
 export default async function ReviewerDashboardPage() {
   const supabase = await createClient()
@@ -22,16 +26,20 @@ export default async function ReviewerDashboardPage() {
     redirect('/login')
   }
 
-  // Verify user is a reviewer
+  // Verify user is a reviewer and fetch full profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, verified, stripe_account_id')
     .eq('id', user.id)
     .single()
 
   if (profile?.role !== 'reviewer') {
     redirect('/dashboard')
   }
+
+  // All reviewers are verified, so we set this to true
+  const isVerified = true
+  const hasStripeAccount = !!profile?.stripe_account_id
 
   // Fetch orders where reviewer_id matches the user and status is 'paid' or 'open'
   const { data: orders } = await supabase
@@ -52,6 +60,7 @@ export default async function ReviewerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
+      <RealtimeOrdersListener />
       <header className="border-b border-white/10 bg-[#0A0A0A]/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
           <Link href="/" className="text-xl font-bold text-white">
@@ -68,6 +77,50 @@ export default async function ReviewerDashboardPage() {
           <h1 className="text-4xl font-bold text-white mb-2">Reviewer Dashboard</h1>
           <p className="text-white/70">Manage your review queue and track earnings</p>
         </div>
+
+        {/* Stripe Connection Banner */}
+        {isVerified && !hasStripeAccount && (
+          <Alert className="mb-6 border-blue-500/50 bg-blue-500/10 text-blue-400">
+            <CreditCard className="h-4 w-4" />
+            <AlertTitle>Connect Stripe to Get Paid</AlertTitle>
+            <AlertDescription className="text-blue-300/80">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <span>Connect your Stripe account to receive payments for completed reviews.</span>
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                  asChild
+                >
+                  <Link href="/dashboard/reviewer/settings">
+                    Connect Stripe
+                    <CreditCard className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Quick Actions Card */}
+        <Card className="border-white/10 bg-white/5 backdrop-blur-xl mb-6">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+              <Button 
+                asChild 
+                variant="outline" 
+                className="w-full justify-start border-white/20 bg-white/5 text-white hover:bg-white/10"
+              >
+                <Link href="/dashboard/reviewer/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings & Pricing
+                </Link>
+              </Button>
+          </CardContent>
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid gap-6 md:grid-cols-2 mb-8">
@@ -138,15 +191,15 @@ export default async function ReviewerDashboardPage() {
                         </Badge>
                       </div>
                     </div>
-                    <Button 
-                      asChild
-                      className="ml-4 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white"
-                    >
-                      <Link href={`/reviews/${order.id}/submit`}>
-                        Start Review
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
+                      <Button 
+                        asChild
+                        className="ml-4 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white"
+                      >
+                        <Link href={`/reviews/${order.id}/submit`}>
+                          Start Review
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
                   </div>
                 ))}
               </div>
