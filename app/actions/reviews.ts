@@ -2,16 +2,12 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { ReviewSubmissionPayload } from '@/types/reviews'
+import { createNotification } from '@/app/actions/notifications'
 
 export async function submitReview(
   orderId: string, 
-  payload: {
-    scorecard?: any
-    writtenFeedback?: string
-    overallRating: number
-    videoUrl?: string
-    audioUrl?: string
-  },
+  payload: ReviewSubmissionPayload,
   requiredReviewTypes?: string[]
 ) {
   const supabase = await createClient()
@@ -19,6 +15,37 @@ export async function submitReview(
   
   if (!user) {
     throw new Error('Unauthorized: User not authenticated')
+  }
+
+  // Pro Studio Schema Validation - Enforce required fields
+  if (!payload.reviewerTitle || payload.reviewerTitle.trim().length === 0) {
+    throw new Error('Reviewer title is required')
+  }
+
+  if (!payload.summary || payload.summary.trim().length < 100) {
+    throw new Error(`Summary is required and must be at least 100 characters (currently ${payload.summary?.length || 0} characters)`)
+  }
+
+  if (!payload.tags || !Array.isArray(payload.tags) || payload.tags.length === 0) {
+    throw new Error('At least one tag is required')
+  }
+
+  if (!payload.rating || payload.rating < 1 || payload.rating > 5) {
+    throw new Error('Rating must be between 1 and 5')
+  }
+
+  if (!payload.scorecard || !Array.isArray(payload.scorecard) || payload.scorecard.length !== 16) {
+    throw new Error(`Scorecard must have exactly 16 items (currently ${payload.scorecard?.length || 0} items)`)
+  }
+
+  // Validate each scorecard item
+  for (const item of payload.scorecard) {
+    if (!item.metric || typeof item.metric !== 'string') {
+      throw new Error('All scorecard items must have a valid metric name')
+    }
+    if (typeof item.score !== 'number' || item.score < 0) {
+      throw new Error('All scorecard items must have a valid numeric score')
+    }
   }
 
   // Get order to fetch package requirements if not provided
@@ -44,20 +71,10 @@ export async function submitReview(
 
   // Backend validation based on required review types
   if (reviewTypes && reviewTypes.length > 0) {
-    // Validate scorecard (if required)
+    // Validate scorecard (if required) - Now enforces 16-point scorecard
     if (reviewTypes.includes('scorecard')) {
-      if (!payload.scorecard) {
-        throw new Error('Scorecard is required for this package. Please complete all 5 criteria.')
-      }
-      const scorecardValues = [
-        payload.scorecard.mixQuality,
-        payload.scorecard.vocalPerformance,
-        payload.scorecard.arrangement,
-        payload.scorecard.soundSelection,
-        payload.scorecard.commercialViability
-      ]
-      if (scorecardValues.some(val => val === undefined || val === null || val < 1 || val > 5)) {
-        throw new Error('All 5 scorecard criteria must be completed (values between 1-5)')
+      if (!payload.scorecard || payload.scorecard.length !== 16) {
+        throw new Error('Scorecard is required for this package. Please complete all 16 criteria.')
       }
     }
 
@@ -70,51 +87,95 @@ export async function submitReview(
 
     // Validate video review (if required) - must be MP4
     if (reviewTypes.includes('video')) {
-      if (!payload.videoUrl) {
+      if (!payload.media || payload.media.type !== 'video') {
         throw new Error('Video review is required for this package. Please upload an MP4 video file.')
       }
       // Verify URL points to MP4 (basic check)
-      if (!payload.videoUrl.match(/\.mp4/i) && !payload.videoUrl.includes('video/mp4')) {
+      if (!payload.media.url.match(/\.mp4/i) && !payload.media.url.includes('video/mp4')) {
         throw new Error('Video review must be in MP4 format')
+      }
+      if (!payload.media.title || payload.media.title.trim().length === 0) {
+        throw new Error('Video review title is required')
       }
     }
 
     // Validate audio review (if required) - must be MP3
     if (reviewTypes.includes('audio')) {
-      if (!payload.audioUrl) {
+      if (!payload.media || payload.media.type !== 'audio') {
         throw new Error('Audio review is required for this package. Please upload an MP3 audio file.')
       }
       // Verify URL points to MP3 (basic check)
-      if (!payload.audioUrl.match(/\.mp3/i) && !payload.audioUrl.includes('audio/mpeg') && !payload.audioUrl.includes('audio/mp3')) {
+      if (!payload.media.url.match(/\.mp3/i) && !payload.media.url.includes('audio/mpeg') && !payload.media.url.includes('audio/mp3')) {
         throw new Error('Audio review must be in MP3 format')
+      }
+      if (!payload.media.title || payload.media.title.trim().length === 0) {
+        throw new Error('Audio review title is required')
       }
     }
   }
   
-  // 1. Create the review record
+  // 1. Create the review record with Pro Studio schema
+  const reviewData: any = {
+    order_id: orderId,
+    reviewer_id: user.id,
+    reviewer_title: payload.reviewerTitle,
+    summary: payload.summary,
+    highlights: payload.highlights || null,
+    tags: payload.tags,
+    scorecard_16: payload.scorecard,
+    overall_rating: payload.rating,
+    written_feedback: payload.writtenFeedback || null,
+    published_date: new Date().toISOString(),
+  }
+
+  // Add media fields if present
+  if (payload.media) {
+    if (payload.media.type === 'video') {
+      reviewData.video_url = payload.media.url
+      reviewData.reviewer_media_title = payload.media.title
+      reviewData.reviewer_media_description = payload.media.description || null
+    } else if (payload.media.type === 'audio') {
+      reviewData.audio_url = payload.media.url
+      reviewData.reviewer_media_title = payload.media.title
+      reviewData.reviewer_media_description = payload.media.description || null
+    }
+  }
+
   const { error: reviewError } = await supabase
     .from('reviews')
-    .insert({
-      order_id: orderId,
-      reviewer_id: user.id,
-      scorecard: payload.scorecard || null,
-      written_feedback: payload.writtenFeedback || null,
-      overall_rating: payload.overallRating,
-      video_url: payload.videoUrl || null,
-      audio_url: payload.audioUrl || null
-    } as any)
+    .insert(reviewData as any)
 
   if (reviewError) throw new Error(reviewError.message)
 
+  // Get order details to fetch artist_id and track_title for notification
+  const { data: orderData } = await supabase
+    .from('orders')
+    .select('artist_id, track_title')
+    .eq('id', orderId)
+    .single()
+
   // 2. Mark order as completed
-  const updateResult = await supabase
+  const { error: orderError } = await (supabase
     .from('orders')
     .update({ status: 'completed' } as any)
-    .eq('id', orderId)
-  
-  const { error: orderError } = updateResult as any
+    .eq('id', orderId) as any)
 
   if (orderError) throw new Error('Failed to update order status')
+
+  // Send notification to artist about completed review
+  if (orderData?.artist_id) {
+    const trackTitle = orderData.track_title || 'Untitled Track'
+    await createNotification(
+      orderData.artist_id,
+      'Review Ready!',
+      `Your feedback for ${trackTitle} is here.`,
+      `/orders/${orderId}/review`,
+      'review'
+    ).catch((err) => {
+      // Log but don't fail the review submission if notification fails
+      console.error('[Review Submission] Error creating notification:', err)
+    })
+  }
 
   revalidatePath('/dashboard/reviewer')
   return { success: true }

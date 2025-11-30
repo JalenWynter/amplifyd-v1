@@ -334,47 +334,62 @@ export default function ArtistTracksPage() {
 
                           {/* Review Details */}
                           {review && (
-                            <div className="mt-4 p-3 rounded-lg border border-green-500/20 bg-green-500/5">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                                <span className="text-white font-medium">
-                                  Overall Rating: {review.overall_rating}/10
-                                </span>
-                              </div>
-                              {review.written_feedback && (
-                                <div className="mt-2">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <FileText className="h-4 w-4 text-white/50" />
-                                    <span className="text-white/70 text-sm font-medium">Feedback:</span>
+                            <div className="mt-4 space-y-4">
+                              <div className="p-3 rounded-lg border border-green-500/20 bg-green-500/5">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                                  <span className="text-white font-medium">
+                                    Overall Rating: {review.overall_rating}/10
+                                  </span>
+                                </div>
+                                {review.written_feedback && (
+                                  <div className="mt-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <FileText className="h-4 w-4 text-white/50" />
+                                      <span className="text-white/70 text-sm font-medium">Feedback:</span>
+                                    </div>
+                                    <p className="text-white/80 text-sm mt-1 pl-6 line-clamp-3">
+                                      {review.written_feedback}
+                                    </p>
                                   </div>
-                                  <p className="text-white/80 text-sm mt-1 pl-6">
-                                    {review.written_feedback}
-                                  </p>
-                                </div>
-                              )}
-                              {review.video_url && (
-                                <div className="mt-2">
-                                  <a 
-                                    href={review.video_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 text-sm"
-                                  >
-                                    Watch Video Review →
-                                  </a>
-                                </div>
-                              )}
-                              {review.audio_url && (
-                                <div className="mt-2">
-                                  <a 
-                                    href={review.audio_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 text-sm"
-                                  >
-                                    Listen to Audio Review →
-                                  </a>
-                                </div>
+                                )}
+                                {review.video_url && (
+                                  <div className="mt-2">
+                                    <a 
+                                      href={review.video_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-400 hover:text-blue-300 text-sm"
+                                    >
+                                      Watch Video Review →
+                                    </a>
+                                  </div>
+                                )}
+                                {review.audio_url && (
+                                  <div className="mt-2">
+                                    <a 
+                                      href={review.audio_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-400 hover:text-blue-300 text-sm"
+                                    >
+                                      Listen to Audio Review →
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* View Full Review Report Button */}
+                              {order.status === 'completed' && (
+                                <Button
+                                  asChild
+                                  className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] text-white"
+                                >
+                                  <Link href={`/orders/${order.id}/review`}>
+                                    View Full Review Report
+                                    <FileText className="h-4 w-4 ml-2" />
+                                  </Link>
+                                </Button>
                               )}
                             </div>
                           )}

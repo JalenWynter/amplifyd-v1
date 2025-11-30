@@ -3,6 +3,41 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+// Helper function to extract file path from Supabase storage URL
+function extractFilePathFromUrl(url: string, bucketName: string): string | null {
+  if (!url) return null
+  
+  // Handle different URL formats:
+  // 1. https://[project].supabase.co/storage/v1/object/public/reviews/path/to/file.mp4
+  // 2. https://[project].supabase.co/storage/v1/object/sign/reviews/path/to/file.mp4?token=...
+  // 3. Full URL with bucket in path
+  
+  try {
+    const urlObj = new URL(url)
+    const pathParts = urlObj.pathname.split('/')
+    
+    // Find the bucket name in the path
+    const bucketIndex = pathParts.findIndex(part => part === bucketName)
+    if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+      // Get everything after the bucket name
+      return pathParts.slice(bucketIndex + 1).join('/')
+    }
+    
+    // Fallback: try to extract from common patterns
+    const match = url.match(new RegExp(`/${bucketName}/(.+)`))
+    if (match && match[1]) {
+      // Remove query parameters if present
+      return match[1].split('?')[0]
+    }
+    
+    return null
+  } catch (error) {
+    // If URL parsing fails, try regex extraction
+    const match = url.match(new RegExp(`/${bucketName}/([^?]+)`))
+    return match ? match[1] : null
+  }
+}
+
 export async function createOrder(data: {
   reviewerId: string
   packageId: string
@@ -82,18 +117,80 @@ export async function getArtistOrdersWithReviews() {
       reviewer:profiles!reviewer_id(full_name, avatar_url),
       reviews (
         id,
+        reviewer_title,
+        summary,
+        highlights,
+        tags,
+        scorecard_16,
         overall_rating,
         written_feedback,
-        scorecard,
         video_url,
         audio_url,
+        reviewer_media_title,
+        reviewer_media_description,
+        published_date,
         created_at
       )
     `)
     .eq('artist_id', user.id)
     .order('created_at', { ascending: false })
 
-  return orders || []
+  if (!orders) return []
+
+  // Sign media URLs for secure access
+  const ordersWithSignedUrls = await Promise.all(
+    orders.map(async (order: any) => {
+      if (order.reviews && Array.isArray(order.reviews)) {
+        const signedReviews = await Promise.all(
+          order.reviews.map(async (review: any) => {
+            const signedReview = { ...review }
+
+            // Sign video URL if exists
+            if (review.video_url) {
+              try {
+                const filePath = extractFilePathFromUrl(review.video_url, 'reviews')
+                if (filePath) {
+                  const { data: signedUrl } = await supabase.storage
+                    .from('reviews')
+                    .createSignedUrl(filePath, 3600)
+                  if (signedUrl) {
+                    signedReview.video_url = signedUrl.signedUrl
+                  }
+                }
+              } catch (error) {
+                console.error('Error signing video URL:', error)
+                // Keep original URL if signing fails
+              }
+            }
+
+            // Sign audio URL if exists
+            if (review.audio_url) {
+              try {
+                const filePath = extractFilePathFromUrl(review.audio_url, 'reviews')
+                if (filePath) {
+                  const { data: signedUrl } = await supabase.storage
+                    .from('reviews')
+                    .createSignedUrl(filePath, 3600)
+                  if (signedUrl) {
+                    signedReview.audio_url = signedUrl.signedUrl
+                  }
+                }
+              } catch (error) {
+                console.error('Error signing audio URL:', error)
+                // Keep original URL if signing fails
+              }
+            }
+
+            return signedReview
+          })
+        )
+        return { ...order, reviews: signedReviews }
+      }
+      return order
+    })
+  )
+
+  return ordersWithSignedUrls
 }
 
 export async function getOrderById(orderId: string) {

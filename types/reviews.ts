@@ -22,4 +22,20 @@ export type PublishedReview = {
   }
 }
 
+export interface ReviewSubmissionPayload {
+  reviewerTitle: string
+  summary: string
+  highlights?: string
+  tags: string[]
+  rating: number
+  scorecard: { metric: string; score: number }[]
+  media?: {
+    type: 'audio' | 'video'
+    url: string
+    title: string
+    description: string
+  }
+  writtenFeedback?: string
+}
+
 

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { signOut } from '@/app/auth/actions'
 import { useRouter } from 'next/navigation'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 
 export function NavbarAuth({ isAuthenticated }: { isAuthenticated: boolean }) {
   const router = useRouter()
@@ -16,6 +17,7 @@ export function NavbarAuth({ isAuthenticated }: { isAuthenticated: boolean }) {
   if (isAuthenticated) {
     return (
       <>
+        <NotificationBell />
         <Button variant="ghost" className="text-sm font-semibold hover:text-primary transition-colors" asChild>
           <Link href="/dashboard">Dashboard</Link>
         </Button>

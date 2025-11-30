@@ -51,10 +51,10 @@ export function ReviewCard({ review }: ReviewCardProps) {
             <div className="text-center">
               <p className="text-xs text-white/60 uppercase tracking-wide mb-2">Scores (16-Card System)</p>
               <div className="grid grid-cols-4 gap-2 max-w-3xl mx-auto">
-                {review.scorecard.slice(0, 8).map((item) => (
-                  <div key={item.metric} className="rounded-xl border border-white/10 bg-black/30 p-2 text-center">
-                    <p className="text-[11px] text-white/60 truncate">{item.metric}</p>
-                    <p className="text-sm font-semibold text-white">{item.score.toFixed(1)}</p>
+                {(review.scorecard || []).slice(0, 8).map((item, index) => (
+                  <div key={item?.metric || index} className="rounded-xl border border-white/10 bg-black/30 p-2 text-center">
+                    <p className="text-[11px] text-white/60 truncate">{item?.metric || 'N/A'}</p>
+                    <p className="text-sm font-semibold text-white">{item?.score?.toFixed(1) || '0.0'}</p>
                   </div>
                 ))}
               </div>
@@ -128,13 +128,13 @@ export function ReviewCard({ review }: ReviewCardProps) {
             <section className="text-center">
               <p className="text-sm font-semibold uppercase tracking-wide text-white/60 mb-4">Review Scores</p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 max-w-5xl mx-auto">
-                {review.scorecard.map((card) => (
+                {(review.scorecard || []).map((card, index) => (
                   <div
-                    key={`${review.id}-${card.metric}`}
+                    key={`${review.id}-${card?.metric || index}`}
                     className="rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center justify-between"
                   >
-                    <div className="text-white/70 text-sm pr-3">{card.metric}</div>
-                    <div className="text-xl font-semibold text-white">{card.score.toFixed(1)}</div>
+                    <div className="text-white/70 text-sm pr-3">{card?.metric || 'N/A'}</div>
+                    <div className="text-xl font-semibold text-white">{card?.score?.toFixed(1) || '0.0'}</div>
                   </div>
                 ))}
               </div>

@@ -30,6 +30,10 @@ import {
   ChevronUp,
   Search,
   X,
+  BarChart3,
+  Video,
+  Headphones,
+  FileText,
 } from "lucide-react"
 import { NavbarAuth } from "@/components/navbar-auth"
 import { createClient } from "@/utils/supabase/client"
@@ -56,6 +60,7 @@ type ReviewerPackage = {
   deliveryTime: string
   revisions: number
   features: string[]
+  reviewTypes?: string[] // Array of review types: 'scorecard', 'audio', 'video', 'written'
 }
 
 type Reviewer = {
@@ -647,7 +652,7 @@ function PackageCard({ pkg, reviewerId }: { pkg: ReviewerPackage; reviewerId: st
       )}
     >
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
+        <div className="space-y-1 flex-1">
           <div className="flex items-center gap-2">
             <h4 className="text-lg font-bold text-white">{pkg.title}</h4>
             {isExpanded ? (
@@ -657,8 +662,37 @@ function PackageCard({ pkg, reviewerId }: { pkg: ReviewerPackage; reviewerId: st
             )}
           </div>
           <p className="text-sm text-white/60 line-clamp-1">{pkg.description}</p>
+          {/* Review Types Preview (collapsed) */}
+          {!isExpanded && pkg.reviewTypes && pkg.reviewTypes.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {pkg.reviewTypes.includes('scorecard') && (
+                <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10">
+                  <BarChart3 className="h-3 w-3 mr-1" />
+                  Scorecard
+                </Badge>
+              )}
+              {pkg.reviewTypes.includes('video') && (
+                <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10">
+                  <Video className="h-3 w-3 mr-1" />
+                  Video
+                </Badge>
+              )}
+              {pkg.reviewTypes.includes('audio') && (
+                <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10">
+                  <Headphones className="h-3 w-3 mr-1" />
+                  Audio
+                </Badge>
+              )}
+              {pkg.reviewTypes.includes('written') && (
+                <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10">
+                  <FileText className="h-3 w-3 mr-1" />
+                  Written
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
-        <div className="text-right">
+        <div className="text-right ml-4">
           <p className="text-2xl font-bold text-[#C4B5FD]">${pkg.price}</p>
         </div>
       </div>
@@ -667,7 +701,7 @@ function PackageCard({ pkg, reviewerId }: { pkg: ReviewerPackage; reviewerId: st
         <div className="mt-4 space-y-4 border-t border-white/10 pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
           <p className="text-sm text-white/80">{pkg.description}</p>
           
-          <div className="flex items-center gap-6 text-sm text-white/70">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-white/70">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-[#8B5CF6]" />
               <span>{pkg.deliveryTime} Delivery</span>
@@ -676,6 +710,38 @@ function PackageCard({ pkg, reviewerId }: { pkg: ReviewerPackage; reviewerId: st
               <RefreshCw className="h-4 w-4 text-[#8B5CF6]" />
               <span>{pkg.revisions} Revision{pkg.revisions !== 1 ? 's' : ''}</span>
             </div>
+            {/* Review Types inline with delivery/revisions */}
+            {pkg.reviewTypes && pkg.reviewTypes.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-white/50">•</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {pkg.reviewTypes.includes('scorecard') && (
+                    <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10 px-2 py-0.5">
+                      <BarChart3 className="h-3 w-3 mr-1" />
+                      Scorecard
+                    </Badge>
+                  )}
+                  {pkg.reviewTypes.includes('video') && (
+                    <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10 px-2 py-0.5">
+                      <Video className="h-3 w-3 mr-1" />
+                      Video
+                    </Badge>
+                  )}
+                  {pkg.reviewTypes.includes('audio') && (
+                    <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10 px-2 py-0.5">
+                      <Headphones className="h-3 w-3 mr-1" />
+                      Audio
+                    </Badge>
+                  )}
+                  {pkg.reviewTypes.includes('written') && (
+                    <Badge variant="outline" className="text-xs border-[#8B5CF6]/40 text-[#C4B5FD] bg-[#8B5CF6]/10 px-2 py-0.5">
+                      <FileText className="h-3 w-3 mr-1" />
+                      Written
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

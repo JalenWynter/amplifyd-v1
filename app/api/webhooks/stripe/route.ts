@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/utils/supabase/server'
+import { createNotification } from '@/app/actions/notifications'
 import Stripe from 'stripe'
 
 // Disable body parsing to get raw body for signature verification
@@ -86,10 +87,10 @@ export async function POST(req: NextRequest) {
     try {
       const supabase = await createClient()
 
-      // Verify order exists and get current status
+      // Verify order exists and get all needed data in one query
       const { data: existingOrder, error: fetchError } = await supabase
         .from('orders')
-        .select('id, status, stripe_session_id')
+        .select('id, status, stripe_session_id, reviewer_id, track_title')
         .eq('id', orderId)
         .single()
 
@@ -126,6 +127,21 @@ export async function POST(req: NextRequest) {
           { error: 'Failed to update order status' },
           { status: 500 }
         )
+      }
+
+      // Send notification to reviewer about new paid order
+      if (existingOrder.reviewer_id) {
+        const trackTitle = existingOrder.track_title || 'Untitled Track'
+        await createNotification(
+          existingOrder.reviewer_id,
+          'New Paid Order!',
+          `${trackTitle} is ready for review.`,
+          '/dashboard/reviewer',
+          'payment'
+        ).catch((err) => {
+          // Log but don't fail the webhook if notification fails
+          console.error('[Stripe Webhook] Error creating notification:', err)
+        })
       }
 
       console.log(`[Stripe Webhook] Successfully updated order ${orderId} status to 'paid'`)

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, Star, Clock, RefreshCw, Check, Loader2, ArrowLeft } from "lucide-react"
+import { CheckCircle2, Star, Clock, RefreshCw, Check, Loader2, ArrowLeft, BarChart3, Video, Headphones, FileText } from "lucide-react"
 import { getReviewers } from "@/app/actions/reviewers"
 import { cn } from "@/lib/utils"
 
@@ -24,6 +24,7 @@ type ReviewerPackage = {
   deliveryTime: string
   revisions: number
   features: string[]
+  reviewTypes?: string[] // Array of review types: 'scorecard', 'audio', 'video', 'written'
 }
 
 type Reviewer = {
@@ -393,6 +394,39 @@ function PackageCard({
           <span>{pkg.revisions} Revision{pkg.revisions !== 1 ? "s" : ""}</span>
         </div>
       </div>
+
+      {/* Review Types */}
+      {pkg.reviewTypes && pkg.reviewTypes.length > 0 && (
+        <div className="space-y-1.5 md:space-y-2 pt-2 border-t border-white/10">
+          <p className="text-xs font-medium text-white/60 uppercase tracking-wide">Review Methods</p>
+          <div className="flex flex-wrap gap-1.5">
+            {pkg.reviewTypes.includes('scorecard') && (
+              <Badge className="bg-[#8B5CF6]/20 text-[#C4B5FD] border-[#8B5CF6]/40 flex items-center gap-1.5 text-xs">
+                <BarChart3 className="h-3 w-3" />
+                <span>16-Point Scorecard</span>
+              </Badge>
+            )}
+            {pkg.reviewTypes.includes('video') && (
+              <Badge className="bg-[#8B5CF6]/20 text-[#C4B5FD] border-[#8B5CF6]/40 flex items-center gap-1.5 text-xs">
+                <Video className="h-3 w-3" />
+                <span>Video Review</span>
+              </Badge>
+            )}
+            {pkg.reviewTypes.includes('audio') && (
+              <Badge className="bg-[#8B5CF6]/20 text-[#C4B5FD] border-[#8B5CF6]/40 flex items-center gap-1.5 text-xs">
+                <Headphones className="h-3 w-3" />
+                <span>Audio Review</span>
+              </Badge>
+            )}
+            {pkg.reviewTypes.includes('written') && (
+              <Badge className="bg-[#8B5CF6]/20 text-[#C4B5FD] border-[#8B5CF6]/40 flex items-center gap-1.5 text-xs">
+                <FileText className="h-3 w-3" />
+                <span>Written Feedback</span>
+              </Badge>
+            )}
+          </div>
+        </div>
+      )}
 
       {pkg.features && pkg.features.length > 0 && (
         <div className="space-y-1.5 md:space-y-2 pt-2 border-t border-white/10">

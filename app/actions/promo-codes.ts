@@ -10,8 +10,7 @@ export interface PromoCode {
   discount_value: number
   max_uses: number | null
   current_uses: number
-  valid_from: string
-  valid_until: string
+  expires_at: string
   is_active: boolean
   created_by: string | null
   created_at: string
@@ -51,25 +50,25 @@ export async function validatePromoCode(code: string): Promise<{
     return { valid: false, error: 'Invalid promo code' }
   }
 
+  const promoCodeData = promoCode as any
   const now = new Date()
-  const validFrom = new Date(promoCode.valid_from)
-  const validUntil = new Date(promoCode.valid_until)
+  const expiresAt = new Date(promoCodeData.expires_at)
 
-  // Check if code is within valid date range
-  if (now < validFrom || now > validUntil) {
+  // Check if code has expired
+  if (now > expiresAt) {
     return { valid: false, error: 'Promo code has expired' }
   }
 
   // Check if max uses reached
-  if (promoCode.max_uses !== null && promoCode.current_uses >= promoCode.max_uses) {
+  if (promoCodeData.max_uses !== null && promoCodeData.current_uses >= promoCodeData.max_uses) {
     return { valid: false, error: 'Promo code has reached maximum uses' }
   }
 
   return {
     valid: true,
     discount: {
-      type: promoCode.discount_type,
-      value: promoCode.discount_value,
+      type: promoCodeData.discount_type,
+      value: promoCodeData.discount_value,
     },
   }
 }
@@ -106,7 +105,8 @@ export async function applyPromoCode(
     .eq('code', code.toUpperCase().trim())
     .single()
 
-  if (!promoCode) {
+  const promoCodeData = promoCode as any
+  if (!promoCodeData) {
     return { success: false, error: 'Promo code not found' }
   }
 
@@ -126,11 +126,11 @@ export async function applyPromoCode(
   const { error: usageError } = await supabase
     .from('promo_code_usage')
     .insert({
-      promo_code_id: promoCode.id,
+      promo_code_id: promoCodeData.id,
       order_id: orderId,
       user_id: user.id,
       discount_amount: discountAmount,
-    })
+    } as any)
 
   if (usageError) {
     console.error('Error recording promo code usage:', usageError)
@@ -138,10 +138,15 @@ export async function applyPromoCode(
   }
 
   // Update current_uses count
-  await supabase
-    .from('promo_codes')
-    .update({ current_uses: promoCode.current_uses + 1 })
-    .eq('id', promoCode.id)
+  try {
+    const updateQuery = supabase
+      .from('promo_codes')
+      .update({ current_uses: promoCodeData.current_uses + 1 } as any)
+      .eq('id', promoCodeData.id)
+    await (updateQuery as any)
+  } catch (error) {
+    console.error('Error updating promo code usage count:', error)
+  }
 
   return {
     success: true,
@@ -166,7 +171,8 @@ export async function getPromoCodes(): Promise<PromoCode[]> {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') return []
+  const profileData = profile as any
+  if (profileData?.role !== 'admin') return []
 
   const { data: promoCodes } = await supabase
     .from('promo_codes')
@@ -192,7 +198,8 @@ export async function getPromoCodeUsage(promoCodeId: string): Promise<PromoCodeU
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') return []
+  const profileData = profile as any
+  if (profileData?.role !== 'admin') return []
 
   const { data: usage } = await supabase
     .from('promo_code_usage')
@@ -211,7 +218,7 @@ export async function createPromoCode(data: {
   discount_type: 'percentage' | 'fixed'
   discount_value: number
   max_uses: number | null
-  valid_until: string
+  expires_at: string
 }): Promise<{ success: boolean; error?: string; promoCode?: PromoCode }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -227,7 +234,8 @@ export async function createPromoCode(data: {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  const profileData = profile as any
+  if (profileData?.role !== 'admin') {
     return { success: false, error: 'Admin access required' }
   }
 
@@ -243,9 +251,9 @@ export async function createPromoCode(data: {
       discount_type: data.discount_type,
       discount_value: data.discount_value,
       max_uses: data.max_uses,
-      valid_until: data.valid_until,
+      expires_at: data.expires_at,
       created_by: user.id,
-    })
+    } as any)
     .select()
     .single()
 
@@ -268,7 +276,7 @@ export async function updatePromoCode(
   data: Partial<{
     is_active: boolean
     max_uses: number | null
-    valid_until: string
+    expires_at: string
   }>
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
@@ -285,14 +293,17 @@ export async function updatePromoCode(
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  const profileData = profile as any
+  if (profileData?.role !== 'admin') {
     return { success: false, error: 'Admin access required' }
   }
 
-  const { error } = await supabase
+  const updateQuery = supabase
     .from('promo_codes')
-    .update(data)
-    .eq('id', id)
+    .update(data as any)
+    .eq('id', id) as any
+  
+  const { error } = await updateQuery
 
   if (error) {
     return { success: false, error: error.message }
@@ -320,7 +331,8 @@ export async function deletePromoCode(id: string): Promise<{ success: boolean; e
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  const profileData = profile as any
+  if (profileData?.role !== 'admin') {
     return { success: false, error: 'Admin access required' }
   }
 

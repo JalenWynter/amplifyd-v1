@@ -15,8 +15,12 @@ import { createClient } from '@/utils/supabase/client'
 import { Loader2, Music, ArrowLeft, AlertCircle, Upload, FileText, X, CheckCircle2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
+import { ScorecardGrid, SCORECARD_METRICS } from '@/components/reviews/scorecard-grid'
+import { TagInput } from '@/components/reviews/tag-input'
+import { ReviewSubmissionPayload } from '@/types/reviews'
 
 type Order = {
   id: string
@@ -46,17 +50,21 @@ export default function ReviewSubmitPage() {
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
 
-  // Form state
-  const [mixQuality, setMixQuality] = useState([3])
-  const [vocalPerformance, setVocalPerformance] = useState([3])
-  const [arrangement, setArrangement] = useState([3])
-  const [soundSelection, setSoundSelection] = useState([3])
-  const [commercialViability, setCommercialViability] = useState([3])
+  // Form state - Pro Studio Schema
+  const [reviewerTitle, setReviewerTitle] = useState('')
+  const [summary, setSummary] = useState('')
+  const [highlights, setHighlights] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [scorecard, setScorecard] = useState<{ metric: string; score: number }[]>(
+    SCORECARD_METRICS.map(metric => ({ metric, score: 5 }))
+  )
   const [writtenFeedback, setWrittenFeedback] = useState('')
   const [overallRating, setOverallRating] = useState(0)
   const [responseFile, setResponseFile] = useState<File | null>(null)
   const [responseFileUrl, setResponseFileUrl] = useState<string | null>(null)
   const [responseFileType, setResponseFileType] = useState<'video' | 'audio' | null>(null)
+  const [mediaTitle, setMediaTitle] = useState('')
+  const [mediaDescription, setMediaDescription] = useState('')
 
   useEffect(() => {
     async function loadData() {
@@ -70,6 +78,20 @@ export default function ReviewSubmitPage() {
         }
 
         setUser(currentUser)
+
+        // Load reviewer profile to get reviewer title
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('reviewer_title, full_name')
+          .eq('id', currentUser.id)
+          .single()
+
+        if (profile?.reviewer_title) {
+          setReviewerTitle(profile.reviewer_title)
+        } else if (profile?.full_name) {
+          // Fallback to full name if reviewer_title not set
+          setReviewerTitle(profile.full_name)
+        }
 
         const orderData = await getOrderById(orderId)
         const orderObj = orderData as Order
@@ -106,6 +128,17 @@ export default function ReviewSubmitPage() {
       loadData()
     }
   }, [orderId, router, toast])
+
+  // Initialize scorecard with all 16 metrics
+  useEffect(() => {
+    if (scorecard.length === 0 || scorecard.length !== SCORECARD_METRICS.length) {
+      const initialized = SCORECARD_METRICS.map(metric => {
+        const existing = scorecard.find(item => item.metric === metric)
+        return existing || { metric, score: 5 }
+      })
+      setScorecard(initialized)
+    }
+  }, [])
 
   const sanitizeFileName = (fileName: string): string => {
     const lastDotIndex = fileName.lastIndexOf('.')
@@ -238,27 +271,42 @@ export default function ReviewSubmitPage() {
     try {
       const requiredTypes = order?.requiredReviewTypes || []
 
-      // Validation based on required review types
+      // Pro Studio Schema Validation
+      if (!reviewerTitle || reviewerTitle.trim().length === 0) {
+        setError('Reviewer title is required')
+        setSubmitting(false)
+        return
+      }
+
+      if (!summary || summary.trim().length < 100) {
+        setError(`Summary is required and must be at least 100 characters (currently ${summary.trim().length} characters)`)
+        setSubmitting(false)
+        return
+      }
+
+      if (!tags || tags.length === 0) {
+        setError('At least one tag is required')
+        setSubmitting(false)
+        return
+      }
+
       if (overallRating === 0) {
         setError('Please provide an overall rating')
         setSubmitting(false)
         return
       }
 
-      // Scorecard validation (if required)
-      if (requiredTypes.includes('scorecard')) {
-        const scorecardValues = [
-          mixQuality[0],
-          vocalPerformance[0],
-          arrangement[0],
-          soundSelection[0],
-          commercialViability[0]
-        ]
-        if (scorecardValues.some(val => !val || val < 1 || val > 5)) {
-          setError('Please complete all 5 scorecard criteria (Mix Quality, Vocal Performance, Arrangement, Sound Selection, Commercial Viability)')
-          setSubmitting(false)
-          return
-        }
+      // Scorecard validation - must have exactly 16 items
+      if (scorecard.length !== 16) {
+        setError('Please complete all 16 scorecard criteria')
+        setSubmitting(false)
+        return
+      }
+
+      if (scorecard.some(item => !item.metric || typeof item.score !== 'number' || item.score < 1)) {
+        setError('All scorecard metrics must have valid scores (1-10)')
+        setSubmitting(false)
+        return
       }
 
       // Written review validation (if required) - 1000 character minimum
@@ -277,6 +325,11 @@ export default function ReviewSubmitPage() {
           setSubmitting(false)
           return
         }
+        if (!mediaTitle || mediaTitle.trim().length === 0) {
+          setError('Video review title is required')
+          setSubmitting(false)
+          return
+        }
         // Verify it's actually MP4
         if (responseFile && !responseFile.name.match(/\.mp4$/i) && responseFile.type !== 'video/mp4') {
           setError('Video review must be in MP4 format')
@@ -292,6 +345,11 @@ export default function ReviewSubmitPage() {
           setSubmitting(false)
           return
         }
+        if (!mediaTitle || mediaTitle.trim().length === 0) {
+          setError('Audio review title is required')
+          setSubmitting(false)
+          return
+        }
         // Verify it's actually MP3
         if (responseFile && !responseFile.name.match(/\.mp3$/i) && !responseFile.type.match(/audio\/(mpeg|mp3)/)) {
           setError('Audio review must be in MP3 format')
@@ -300,40 +358,24 @@ export default function ReviewSubmitPage() {
         }
       }
 
-      const scorecard = {
-        mixQuality: mixQuality[0],
-        vocalPerformance: vocalPerformance[0],
-        arrangement: arrangement[0],
-        soundSelection: soundSelection[0],
-        commercialViability: commercialViability[0],
+      // Construct ReviewSubmissionPayload
+      const payload: ReviewSubmissionPayload = {
+        reviewerTitle: reviewerTitle.trim(),
+        summary: summary.trim(),
+        highlights: highlights.trim() || undefined,
+        tags: tags,
+        rating: overallRating,
+        scorecard: scorecard,
+        writtenFeedback: writtenFeedback.trim() || undefined,
       }
 
-      const payload: {
-        scorecard?: any
-        writtenFeedback?: string
-        overallRating: number
-        videoUrl?: string
-        audioUrl?: string
-      } = {
-        overallRating,
-      }
-
-      // Only include scorecard if required
-      if (requiredTypes.includes('scorecard')) {
-        payload.scorecard = scorecard
-      }
-
-      // Only include written feedback if required or provided
-      if (requiredTypes.includes('written') || writtenFeedback.trim().length > 0) {
-        payload.writtenFeedback = writtenFeedback.trim()
-      }
-
-      // Add file URL if uploaded
-      if (responseFileUrl) {
-        if (responseFileType === 'video') {
-          payload.videoUrl = responseFileUrl
-        } else {
-          payload.audioUrl = responseFileUrl
+      // Add media if uploaded
+      if (responseFileUrl && responseFileType) {
+        payload.media = {
+          type: responseFileType,
+          url: responseFileUrl,
+          title: mediaTitle.trim(),
+          description: mediaDescription.trim() || '',
         }
       }
 
@@ -521,8 +563,25 @@ export default function ReviewSubmitPage() {
                     </Alert>
                   )}
 
-                  {/* Scorecard Sliders (1-5) */}
-                  <div className="space-y-6">
+                  {/* Reviewer Title */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reviewer-title" className="text-white">
+                      Reviewer Title <span className="text-red-400">*</span>
+                    </Label>
+                    <Input
+                      id="reviewer-title"
+                      value={reviewerTitle}
+                      onChange={(e) => setReviewerTitle(e.target.value)}
+                      className="bg-white/5 border-white/20 text-white"
+                      placeholder="e.g., Mix Engineer, Songwriting Mentor"
+                    />
+                    <p className="text-white/50 text-xs">
+                      Your professional title or role (e.g., "Mix Engineer", "Songwriting Mentor")
+                    </p>
+                  </div>
+
+                  {/* 16-Point Scorecard */}
+                  <div className="space-y-2">
                     {requiresScorecard && (
                       <div className="mb-4">
                         <Badge className="bg-[#8B5CF6]/20 text-[#C4B5FD] border-[#8B5CF6]/40 mb-2">
@@ -530,95 +589,65 @@ export default function ReviewSubmitPage() {
                         </Badge>
                       </div>
                     )}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="mix-quality" className="text-white">
-                          Mix Quality {requiresScorecard && <span className="text-red-400">*</span>}
-                        </Label>
-                        <span className="text-sm text-white/70">{mixQuality[0]} / 5</span>
-                      </div>
-                      <Slider
-                        id="mix-quality"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={mixQuality}
-                        onValueChange={setMixQuality}
-                        className="w-full"
-                      />
-                    </div>
+                    <Label className="text-white">
+                      Scorecard <span className="text-red-400">*</span>
+                    </Label>
+                    <ScorecardGrid value={scorecard} onChange={setScorecard} />
+                    <p className="text-white/50 text-xs">
+                      Rate each metric from 1-10. All 16 metrics are required.
+                    </p>
+                  </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="vocal-performance" className="text-white">
-                          Vocal Performance
-                        </Label>
-                        <span className="text-sm text-white/70">{vocalPerformance[0]} / 5</span>
-                      </div>
-                      <Slider
-                        id="vocal-performance"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={vocalPerformance}
-                        onValueChange={setVocalPerformance}
-                        className="w-full"
-                      />
-                    </div>
+                  {/* Tags */}
+                  <div className="space-y-2">
+                    <Label className="text-white">
+                      Tags <span className="text-red-400">*</span>
+                    </Label>
+                    <TagInput value={tags} onChange={setTags} />
+                  </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="arrangement" className="text-white">
-                          Arrangement
-                        </Label>
-                        <span className="text-sm text-white/70">{arrangement[0]} / 5</span>
-                      </div>
-                      <Slider
-                        id="arrangement"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={arrangement}
-                        onValueChange={setArrangement}
-                        className="w-full"
-                      />
+                  {/* Summary */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="summary" className="text-white">
+                        Summary <span className="text-red-400">*</span>
+                      </Label>
+                      <span className={`text-xs ${
+                        summary.length < 100 
+                          ? 'text-red-400' 
+                          : summary.length < 150
+                          ? 'text-yellow-400'
+                          : 'text-white/50'
+                      }`}>
+                        {summary.length} / 100 characters (minimum)
+                      </span>
                     </div>
+                    <Textarea
+                      id="summary"
+                      value={summary}
+                      onChange={(e) => setSummary(e.target.value)}
+                      className="min-h-[120px] bg-white/5 border-white/20 text-white placeholder:text-white/40"
+                      placeholder="Provide a concise summary of your review (minimum 100 characters)..."
+                    />
+                    {summary.length < 100 && (
+                      <p className="text-red-400 text-xs">
+                        Summary must be at least 100 characters ({100 - summary.length} more needed)
+                      </p>
+                    )}
+                  </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="sound-selection" className="text-white">
-                          Sound Selection
-                        </Label>
-                        <span className="text-sm text-white/70">{soundSelection[0]} / 5</span>
-                      </div>
-                      <Slider
-                        id="sound-selection"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={soundSelection}
-                        onValueChange={setSoundSelection}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="commercial-viability" className="text-white">
-                          Commercial Viability
-                        </Label>
-                        <span className="text-sm text-white/70">{commercialViability[0]} / 5</span>
-                      </div>
-                      <Slider
-                        id="commercial-viability"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={commercialViability}
-                        onValueChange={setCommercialViability}
-                        className="w-full"
-                      />
-                    </div>
+                  {/* Highlights (Optional) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="highlights" className="text-white">
+                      Highlights (Optional)
+                    </Label>
+                    <Textarea
+                      id="highlights"
+                      value={highlights}
+                      onChange={(e) => setHighlights(e.target.value)}
+                      className="min-h-[80px] bg-white/5 border-white/20 text-white placeholder:text-white/40"
+                      placeholder="Key takeaways or deliverables (optional)..."
+                    />
                   </div>
 
                   {/* Written Feedback */}
@@ -728,27 +757,53 @@ export default function ReviewSubmitPage() {
                           </label>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                          <div className="flex items-center gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-green-400" />
-                            <div>
-                              <p className="text-white font-medium text-sm">
-                                {responseFile?.name || 'File uploaded'}
-                              </p>
-                              <p className="text-white/50 text-xs">
-                                {responseFileType === 'video' ? 'Video' : 'Audio'} response ready
-                              </p>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                            <div className="flex items-center gap-3">
+                              <CheckCircle2 className="h-5 w-5 text-green-400" />
+                              <div>
+                                <p className="text-white font-medium text-sm">
+                                  {responseFile?.name || 'File uploaded'}
+                                </p>
+                                <p className="text-white/50 text-xs">
+                                  {responseFileType === 'video' ? 'Video' : 'Audio'} response ready
+                                </p>
+                              </div>
                             </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={removeFile}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={removeFile}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <div className="space-y-2">
+                            <Label htmlFor="media-title" className="text-white">
+                              Media Title <span className="text-red-400">*</span>
+                            </Label>
+                            <Input
+                              id="media-title"
+                              value={mediaTitle}
+                              onChange={(e) => setMediaTitle(e.target.value)}
+                              className="bg-white/5 border-white/20 text-white"
+                              placeholder="e.g., Real-time Drop Rebuild, Lyric Rework Walkthrough"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="media-description" className="text-white">
+                              Media Description (Optional)
+                            </Label>
+                            <Textarea
+                              id="media-description"
+                              value={mediaDescription}
+                              onChange={(e) => setMediaDescription(e.target.value)}
+                              className="min-h-[80px] bg-white/5 border-white/20 text-white placeholder:text-white/40"
+                              placeholder="Describe what viewers/listeners will see or hear..."
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -759,14 +814,15 @@ export default function ReviewSubmitPage() {
                     type="submit"
                     disabled={
                       submitting || 
+                      !reviewerTitle.trim() ||
+                      summary.trim().length < 100 ||
+                      tags.length === 0 ||
+                      scorecard.length !== 16 ||
+                      scorecard.some(item => !item.metric || item.score < 1) ||
                       overallRating === 0 || 
                       (requiresWritten && feedbackCharCount < minChars) ||
-                      (requiresScorecard && (
-                        !mixQuality[0] || !vocalPerformance[0] || !arrangement[0] || 
-                        !soundSelection[0] || !commercialViability[0]
-                      )) ||
-                      (requiresVideo && (!responseFileUrl || responseFileType !== 'video')) ||
-                      (requiresAudio && (!responseFileUrl || responseFileType !== 'audio')) ||
+                      (requiresVideo && (!responseFileUrl || responseFileType !== 'video' || !mediaTitle.trim())) ||
+                      (requiresAudio && (!responseFileUrl || responseFileType !== 'audio' || !mediaTitle.trim())) ||
                       uploadingFile
                     }
                     className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] text-white disabled:opacity-50 disabled:cursor-not-allowed"

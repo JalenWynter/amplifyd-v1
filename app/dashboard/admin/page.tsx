@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { PromoCodeAdmin } from '@/components/promo-code-admin'
+import { NotificationBroadcast } from '@/components/admin/notification-broadcast'
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
@@ -168,6 +169,9 @@ export default async function AdminDashboardPage() {
 
         {/* Promo Code Management */}
         <PromoCodeAdmin />
+
+        {/* Notification Broadcast */}
+        <NotificationBroadcast />
 
         {/* Recent Tickets */}
         <Card className="border-white/10 bg-white/5 backdrop-blur-xl mt-8">
